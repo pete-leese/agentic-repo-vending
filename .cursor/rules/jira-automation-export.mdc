@@ -33,7 +33,7 @@ Canonical working example: [`docs/jira/automation-rules-two-phase.json`](../../d
 - Webhook URL: Cursor Automation webhook; `Authorization: Bearer <webhook_api_key>` (not global `CURSOR_API_KEY`).
 - Keep `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY` (or empty secure header) obvious so humans fill the real key after import.
 - Imported rules arrive **DISABLED** — document enable + disable of superseded rules.
-- After changing approval keywords in `repo-vend.yaml`, update the approve rule’s comment regex / comparator to match (generator only patches `{{comment.body}}` REGEX conditions).
+- Field-changed re-propose rules must set **For: Edit issue** only (`"actions": ["edit"]` in export JSON). Empty/`[]` also listens to **Create** and duplicates the issue-created propose rule.
 
 ## Checklist before telling the user a JSON is importable
 

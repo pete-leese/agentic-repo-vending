@@ -171,6 +171,21 @@ def _success_vend_plan(
     )
 
 
+def _proposal_ready_plan(settings: Settings, markdown: str) -> JiraUpdatePlan:
+    """Proposal ready: add repo-vend-proposed, clear prior error-state outcome labels."""
+    error_states = [
+        settings.jira_label_error,
+        settings.jira_label_warning,
+        settings.jira_label_success,
+    ]
+    return JiraUpdatePlan(
+        transition_to=None,
+        labels_add=[settings.jira_proposed_label],
+        labels_remove=error_states,
+        comment_markdown=markdown,
+    )
+
+
 def is_vended(issue: IssueSnapshot, settings: Settings) -> bool:
     return settings.jira_vended_label in issue.labels
 
@@ -322,12 +337,7 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
             request_path=path,
             pr_url=pr_url,
             message=f"Proposal ready for {name}",
-            jira=JiraUpdatePlan(
-                transition_to=None,
-                labels_add=[settings.jira_proposed_label],
-                labels_remove=[settings.jira_label_error],
-                comment_markdown=markdown,
-            ),
+            jira=_proposal_ready_plan(settings, markdown),
         )
 
 
