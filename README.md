@@ -3,7 +3,7 @@
 Laptop-free workflow that vends public GitHub repositories from Jira tickets using **Cursor Cloud Agents**, dual-model evals, and hybrid Spec Requests.
 
 **Owner:** [`pete-leese`](https://github.com/pete-leese)  
-**Jira board:** [KAN](https://agentic-workflow-demo.atlassian.net/jira/software/projects/KAN/boards/2)
+**Jira board:** [REPO](https://agentic-workflow-demo.atlassian.net/jira/software/projects/REPO/boards/2)
 
 ## What it does
 
@@ -16,6 +16,12 @@ Laptop-free workflow that vends public GitHub repositories from Jira tickets usi
 Setup: [Getting started](docs/getting-started.md) · [Jira + webhook](docs/jira-setup.md) · [Cursor Automation](docs/automation-setup.md) · [Rules](rules/naming.md) · [Config](repo-vend.yaml)
 
 ## Quick setup (Jira ↔ Cursor)
+
+**From Cursor (recommended):** run skill **setup-repo-vend-automation**. It opens a prefilled Webhook Automation draft, then when you **paste the webhook URL** into chat it automatically generates Jira import JSON (same as **generate-jira-automation** — no second skill).
+
+Cursor cannot fully create the Automation or return webhook credentials without the UI — you still click **Save** and copy the webhook URL + API key.
+
+**Manual path:**
 
 1. Create a Cursor **Webhook** Automation ([automation-setup.md](docs/automation-setup.md)); copy webhook URL + **webhook API key**.
 2. Generate importable Jira rules (skill **generate-jira-automation**, or script):
@@ -37,7 +43,7 @@ Full walkthrough: [docs/getting-started.md](docs/getting-started.md).
 ```mermaid
 sequenceDiagram
   participant Human
-  participant Jira as Jira_KAN
+  participant Jira as Jira_REPO
   participant Agent as Cloud_Agent
   participant App as repo_vendor
   participant Spec as requests_YAML
@@ -58,10 +64,11 @@ sequenceDiagram
 
 ## Models
 
-| Role | Model ID |
-|------|----------|
-| Cloud Automation / orchestrator | `composer-2.5` |
-| Eval judge | `composer-2` |
+| Role | Model ID | Notes |
+|------|----------|--------|
+| Cloud Automation (agent runtime) | `composer-2.5` | Prefill / Automations UI |
+| Propose extract (orchestrator) | `composer-2.5` | Cursor Models pool |
+| Eval judge | `claude-sonnet-5` | Other Models pool; must ≠ orchestrator |
 | Naming gate | deterministic |
 
 ## Quick links
@@ -73,6 +80,7 @@ sequenceDiagram
 - [Eval prompts (JSON)](evals/)
 - [Spec requests](requests/)
 - [Jira + webhook setup](docs/jira-setup.md)
+- [Setup Cursor Automation skill](.agents/skills/setup-repo-vend-automation/SKILL.md)
 - [Generate Jira Automation skill](.agents/skills/generate-jira-automation/SKILL.md)
 - [Automation setup](docs/automation-setup.md)
 - [Demo walkthrough](docs/demo-walkthrough.md)
@@ -86,7 +94,7 @@ sequenceDiagram
 pip install -e '.[dev,cursor]'
 pytest
 python -m repo_vendor doctor
-echo '{"key":"KAN-1","summary":"python logging helper","description":"...","status":"New Request","labels":["type-python"]}' \
+echo '{"key":"REPO-1","summary":"python logging helper","description":"...","status":"New Request","labels":["type-python"]}' \
   | python -m repo_vendor propose --json --dry-run
 ```
 

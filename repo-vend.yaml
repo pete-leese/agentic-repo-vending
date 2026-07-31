@@ -36,5 +36,9 @@ github:
   default_project_type: generic
 
 models:
+  # Dual-model policy: orchestrator ≠ eval (see docs/adr/0002).
+  # composer-2.5 → Cursor Models pool (cheap extract).
+  # claude-sonnet-5 → Other Models pool (stronger independent naming judge).
+  # Override locally: ORCHESTRATOR_MODEL / EVAL_MODEL. List IDs: Cursor.models.list().
   orchestrator: composer-2.5
-  eval: composer-2
+  eval: claude-sonnet-5

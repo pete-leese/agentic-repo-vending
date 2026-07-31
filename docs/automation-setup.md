@@ -2,6 +2,8 @@
 
 Primary wake path: **Jira webhook** → Cursor Automation (**Atlassian tools** for board I/O) → `repo_vendor propose` / `vend`.
 
+**From Cursor:** run skill **setup-repo-vend-automation** to open a prefilled Automations draft (webhook + Atlassian + this instruction block). After Save, **paste the webhook URL in chat** — the skill auto-runs the Jira import generator. Prefill builder: `scripts/build_repo_vend_automation_prefill.py`.
+
 **Replace any older Automation instructions** that mention `rename`, `python -m repo_vendor vend --issue <KEY>`, or a single-shot vend. Use the block below only.
 
 ## Required tools
@@ -87,6 +89,6 @@ See [getting-started.md](getting-started.md) §6 and [jira-setup.md](jira-setup.
 | Secret | Purpose |
 |--------|---------|
 | `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
-| `CURSOR_API_KEY` | composer-2.5 / composer-2 |
+| `CURSOR_API_KEY` | SDK evals (`composer-2.5` + `claude-sonnet-5` per `repo-vend.yaml`) |
 
 Jira access: **Atlassian Automation tool** only.

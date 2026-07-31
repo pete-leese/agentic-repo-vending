@@ -16,7 +16,8 @@ Enable the **Atlassian** tool. Secrets: `GITHUB_TOKEN`, `CURSOR_API_KEY`.
 | [`evals/judge-naming.json`](evals/judge-naming.json) | Eval judge |
 | [`requests/`](requests/) | Spec Request YAML (via PR) |
 | [`docs/customizing.md`](docs/customizing.md) | How to customize templates and rules |
-| Skill **generate-jira-automation** | Ask for Cursor webhook URL → write importable `docs/jira/*.json` |
+| Skill **setup-repo-vend-automation** | Prefill + open Cursor Webhook Automation; on pasted webhook URL, auto-run generate-jira-automation |
+| Skill **generate-jira-automation** | Ask for Cursor webhook URL → write importable `docs/jira/*.json` (also chained from setup) |
 
 ## CLI
 

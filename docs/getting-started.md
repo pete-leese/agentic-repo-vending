@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - GitHub account `pete-leese` (or set `GITHUB_OWNER`)
-- Jira project [KAN](https://agentic-workflow-demo.atlassian.net/jira/software/projects/KAN/boards/2)
+- Jira project [REPO](https://agentic-workflow-demo.atlassian.net/jira/software/projects/REPO/boards/2)
 - Cursor account with Cloud Agents + Automations
 - API tokens stored only as **secrets** (not in git)
 
@@ -23,7 +23,7 @@ Edit [`repo-vend.yaml`](../repo-vend.yaml) for board URL, approval keywords, and
 
 | Secret | Purpose |
 |--------|---------|
-| `CURSOR_API_KEY` | Cursor SDK (`composer-2.5` / `composer-2`) |
+| `CURSOR_API_KEY` | Cursor SDK (`composer-2.5` extract + `claude-sonnet-5` judge; see `repo-vend.yaml`) |
 | `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
 
 Jira board I/O: **Atlassian** tool on the Cursor Automation (not Jira API tokens in the CLI).
@@ -49,6 +49,13 @@ Creates/updates public templates including `template-terraform-repo`, `template-
 
 ## 5. Cursor Automation
 
+**Option A — skill (recommended):** in Cursor Agents Window, run **setup-repo-vend-automation**.  
+It opens a prefilled Webhook Automation, then **automatically** runs the Jira import generator (**generate-jira-automation** steps) when you paste the webhook URL into chat — no second skill invoke.
+
+You still must **Save** in the UI — Cursor does not return webhook URL/API key until then.
+
+**Option B — manual:**
+
 1. Create a **Webhook** Automation on this repo (`docs/automation-setup.md`).
 2. Enable the **Atlassian** tool; bind the environment with secrets.
 3. Paste instructions from [automation-setup.md](automation-setup.md).
@@ -59,6 +66,8 @@ Creates/updates public templates including `template-terraform-repo`, `template-
 ## 6. Generate + import Jira Automation rules
 
 Two rules: **propose** on issue create (New Request), **vend** on Keyword Approval comment.
+
+If you used **setup-repo-vend-automation**, Phase B already generates the import file. Otherwise:
 
 **Option A — skill:** run **generate-jira-automation** in Cursor and paste your webhook URL when asked.
 
@@ -91,7 +100,7 @@ Full detail: [jira-setup.md](jira-setup.md). Export pitfalls: `.cursor/rules/jir
 
 ## 7. First ticket
 
-1. Create a KAN issue in **New Request**, e.g.  
+1. Create a REPO issue in **New Request**, e.g.  
    `I need a new repo for a terraform module for S3 bucket for my aws platform`
 2. Read the proposal comment (name, template, evals) + Spec PR
 3. Reply `lgtm` (or another keyword from `repo-vend.yaml`)
