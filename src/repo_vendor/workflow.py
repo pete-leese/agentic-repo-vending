@@ -16,6 +16,7 @@ from repo_vendor.models import (
     SpecRequest,
 )
 from repo_vendor.naming import (
+    enrich_intent_from_heuristics,
     enrich_intent_platform,
     enrich_intent_type_and_shape,
     to_kebab,
@@ -220,6 +221,12 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 summary=issue.summary,
                 description=issue.description,
                 labels=issue.labels,
+            )
+            intent = enrich_intent_from_heuristics(
+                intent,
+                issue.summary,
+                issue.description,
+                issue.labels,
             )
             intent = enrich_intent_platform(
                 intent,

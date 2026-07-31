@@ -1,6 +1,7 @@
 from repo_vendor.models import ExtractedIntent, Platform, ProjectType, TerraformShape
 from repo_vendor.naming import (
     build_proposed_name,
+    enrich_intent_from_heuristics,
     infer_intent_from_labels_and_text,
     to_kebab,
     validate_name_and_template,
@@ -73,6 +74,25 @@ def test_module_missing_platform_fails():
     )
     gate = validate_name_and_template(intent)
     assert not gate.passed
+
+
+def test_enrich_upgrades_generic_when_text_implies_terraform():
+    intent = ExtractedIntent(
+        project_type=ProjectType.GENERIC,
+        purpose="s3",
+        proposed_name="terraform-module-s3-aws",
+    )
+    enriched = enrich_intent_from_heuristics(
+        intent,
+        summary="i need an s3 terraform module repo",
+        description="",
+        labels=[],
+    )
+    assert enriched.project_type == ProjectType.TERRAFORM
+    assert enriched.terraform_shape == TerraformShape.MODULE
+    assert enriched.platform == Platform.AWS
+    gate = validate_name_and_template(enriched)
+    assert gate.passed
 
 
 def test_heuristic_extract_from_free_text():
