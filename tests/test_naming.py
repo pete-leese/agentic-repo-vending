@@ -87,3 +87,37 @@ def test_heuristic_extract_from_free_text():
     gate = validate_name_and_template(intent)
     assert gate.passed
     assert gate.normalized_name == "terraform-module-s3-bucket-aws"
+
+
+def test_heuristic_eks_implies_aws_without_platform_label():
+    intent = infer_intent_from_labels_and_text(
+        summary="terraform module for EKS cluster networking",
+        description="Reusable module",
+        labels=["tf-module"],
+    )
+    assert intent.project_type == ProjectType.TERRAFORM
+    assert intent.terraform_shape == TerraformShape.MODULE
+    assert intent.platform == Platform.AWS
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "terraform-module-eks-cluster-networking-aws"
+
+
+def test_heuristic_gke_implies_gcp():
+    intent = infer_intent_from_labels_and_text(
+        summary="Need a terraform module for GKE node pools",
+        description="",
+        labels=["type-terraform", "tf-module"],
+    )
+    assert intent.platform == Platform.GCP
+    assert validate_name_and_template(intent).passed
+
+
+def test_heuristic_aks_implies_azure():
+    intent = infer_intent_from_labels_and_text(
+        summary="terraform module for AKS",
+        description="",
+        labels=["tf-module"],
+    )
+    assert intent.platform == Platform.AZURE
+    assert validate_name_and_template(intent).passed

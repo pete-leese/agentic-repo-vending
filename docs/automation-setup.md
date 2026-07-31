@@ -31,7 +31,11 @@ Parse the webhook JSON for:
 
 There is NO rename action. Do not run rename. Wrong names are fixed by re-proposing before approval.
 
+Platform: terraform modules need aws|gcp|azure. Prefer labels / explicit cloud words; otherwise derive from services (EKS/ECS/S3/…→aws, GKE/GCS/…→gcp, AKS/…→azure). Do not demand platform-aws when the service already implies the cloud.
+
 ## Propose (action == "propose")
+
+Triggered on: issue create, summary/description edit, or helper label add (platform-|tf-|type-*) while still New Request and not repo-vended.
 
 1. Using Atlassian tools, load the issue (summary, description, status, labels).
 2. If label "repo-vended" is present: add a short comment that propose is skipped (idempotent) and stop.
@@ -44,6 +48,7 @@ There is NO rename action. Do not run rename. Wrong names are fixed by re-propos
    - transition_to when set
    - comment_markdown (preserve markdown)
 6. Reply briefly (outcome, proposed name, Spec PR URL if any). Never print secrets.
+7. Re-propose is expected when humans add context; update Spec PR / proposal comment from the latest extract.
 
 ## Vend (action == "vend")
 
@@ -80,7 +85,7 @@ With the **webhook URL** and **webhook API key** in hand:
 2. Import `docs/jira/automation-rules-import.json` via **Space Settings → Automation → Global automation**  
    (or `{jira.base_url}/jira/settings/automation` from `repo-vend.yaml`).
 3. Set `Authorization: Bearer <webhook_api_key>` on **each** Send web request action.
-4. Enable both rules.
+4. Enable all four rules (create propose, edit re-propose, label re-propose, approve).
 
 See [getting-started.md](getting-started.md) §6 and [jira-setup.md](jira-setup.md).
 
@@ -89,6 +94,6 @@ See [getting-started.md](getting-started.md) §6 and [jira-setup.md](jira-setup.
 | Secret | Purpose |
 |--------|---------|
 | `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
-| `CURSOR_API_KEY` | SDK evals (`composer-2.5` + `claude-sonnet-5` per `repo-vend.yaml`) |
+| `CURSOR_API_KEY` | SDK evals (`claude-sonnet-5` extract + `composer-2.5` judge per `repo-vend.yaml`) |
 
 Jira access: **Atlassian Automation tool** only.

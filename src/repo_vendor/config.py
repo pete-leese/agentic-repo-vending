@@ -59,10 +59,10 @@ def _yaml_field_map() -> dict[str, Any]:
         or "template-generic-repo",
         "default_project_type": cfg_str(data, "github", "default_project_type", default="generic")
         or "generic",
-        "orchestrator_model": cfg_str(data, "models", "orchestrator", default="composer-2.5")
-        or "composer-2.5",
-        "eval_model": cfg_str(data, "models", "eval", default="claude-sonnet-5")
+        "orchestrator_model": cfg_str(data, "models", "orchestrator", default="claude-sonnet-5")
         or "claude-sonnet-5",
+        "eval_model": cfg_str(data, "models", "eval", default="composer-2.5")
+        or "composer-2.5",
     }
     return {k: v for k, v in out.items() if v not in (None, "")}
 
@@ -125,8 +125,8 @@ class Settings(BaseSettings):
 
     # Cursor models
     cursor_api_key: str = Field(default="", alias="CURSOR_API_KEY")
-    orchestrator_model: str = Field(default="composer-2.5", alias="ORCHESTRATOR_MODEL")
-    eval_model: str = Field(default="claude-sonnet-5", alias="EVAL_MODEL")
+    orchestrator_model: str = Field(default="claude-sonnet-5", alias="ORCHESTRATOR_MODEL")
+    eval_model: str = Field(default="composer-2.5", alias="EVAL_MODEL")
 
     # Behaviour
     dry_run: bool = Field(default=False, alias="DRY_RUN")

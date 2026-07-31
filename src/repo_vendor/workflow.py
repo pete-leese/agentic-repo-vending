@@ -201,6 +201,19 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 description=issue.description,
                 labels=issue.labels,
             )
+            if intent.platform is None:
+                from repo_vendor.platform_aliases import infer_platform_from_text
+
+                blob = f"{issue.summary}\n{issue.description}\n{' '.join(issue.labels)}"
+                inferred = infer_platform_from_text(blob)
+                if inferred is not None:
+                    intent.platform = inferred
+                    if "platform" in " ".join(intent.missing_info).lower():
+                        intent.missing_info = [
+                            m
+                            for m in intent.missing_info
+                            if "platform" not in m.lower()
+                        ]
 
         with span("eval_llm", model=settings.eval_model):
             verdict = eval_with_harness(

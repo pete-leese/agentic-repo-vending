@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""Generate an importable Jira Automation JSON for the two-phase propose/vend flow.
+"""Generate an importable Jira Automation JSON for propose / re-propose / vend.
 
 Usage:
   python scripts/generate_jira_automation_import.py --webhook-url URL [--out PATH]
 
 Reads repo-vend.yaml for site base_url, New Request status, and approval keywords.
 Starts from docs/jira/automation-rules-two-phase.json (structure + project ARIs).
+
+Rules in the template:
+  - repo-vend-propose          — issue created → propose
+  - repo-vend-propose-on-edit  — summary/description edit → propose
+  - repo-vend-propose-on-label — helper label add (platform-|tf-|type-*) → propose
+  - repo-vend-approve          — Keyword Approval comment → vend
 """
 
 from __future__ import annotations
@@ -142,8 +148,12 @@ def _patch_from_config(data: dict, cfg: dict) -> None:
                 cv = value.get("compareValue") or {}
                 cv["value"] = json.dumps([vended])
                 value["compareValue"] = cv
-            # Keyword regex
-            if cond.get("type") == "jira.comparator.condition" and value.get("operator") == "REGEX_MATCHES":
+            # Keyword regex (approve rule only — do not overwrite label-retrigger regex)
+            if (
+                cond.get("type") == "jira.comparator.condition"
+                and value.get("operator") == "REGEX_MATCHES"
+                and value.get("first") == "{{comment.body}}"
+            ):
                 value["second"] = regex
 
 

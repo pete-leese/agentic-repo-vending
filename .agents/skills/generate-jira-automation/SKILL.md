@@ -1,12 +1,12 @@
 ---
 name: generate-jira-automation
 description: >-
-  Generate an importable Jira Automation JSON for the two-phase propose/vend
-  flow from a Cursor Automation webhook URL and repo-vend.yaml. Use when the
-  user asks to generate/export Jira automation rules, wire a Cursor webhook into
-  Jira, or produce docs/jira/*.json for import. Also run these steps automatically
-  when setup-repo-vend-automation receives a pasted webhook URL (do not make the
-  user invoke this skill separately in that flow).
+  Generate an importable Jira Automation JSON for propose, context re-propose
+  (edit/label), and Keyword Approval vend from a Cursor Automation webhook URL
+  and repo-vend.yaml. Use when the user asks to generate/export Jira automation
+  rules, wire a Cursor webhook into Jira, or produce docs/jira/*.json for import.
+  Also run these steps automatically when setup-repo-vend-automation receives a
+  pasted webhook URL (do not make the user invoke this skill separately in that flow).
 disable-model-invocation: false
 ---
 
@@ -32,7 +32,11 @@ python3 scripts/generate_jira_automation_import.py --webhook-url '<USER_PROVIDED
 
 ### Generated file
 - Path: the `out` value (usually `docs/jira/automation-rules-import.json`)
-- Rules: `repo-vend-propose` (issue created → propose) and `repo-vend-approve` (Keyword Approval comment → vend)
+- Rules (four):
+  - `repo-vend-propose` — issue created → propose
+  - `repo-vend-propose-on-edit` — summary/description edit → propose (more context)
+  - `repo-vend-propose-on-label` — helper label add (`platform-*` / `tf-*` / `type-*`) → propose
+  - `repo-vend-approve` — Keyword Approval comment → vend
 
 ### Authorization header (required after import)
 For **each** rule’s **Send web request** (POST) action:
@@ -56,10 +60,10 @@ The generated JSON uses placeholder `Bearer REPLACE_WITH_CURSOR_WEBHOOK_API_KEY`
    Example shape (site from config): `{base_url}/jira/settings/automation`
 
 2. **⋯ → Import rules** (or **Import flows**), upload the generated JSON.
-3. Select both rules, finish import (they arrive **disabled**).
-4. Set the **Authorization** Bearer on both Send web request actions.
-5. **Enable** both rules; disable/delete any superseded one-shot vend rule.
-6. Follow [`.cursor/rules/jira-automation-export.mdc`](../../.cursor/rules/jira-automation-export.mdc) if hand-editing the JSON (valid UUIDs, `CONTAINS_NONE` not invented operators).
+3. Select all four rules, finish import (they arrive **disabled**).
+4. Set the **Authorization** Bearer on **every** Send web request action.
+5. **Enable** all four rules; disable/delete any superseded one-shot vend rule.
+6. Follow [`.cursor/rules/jira-automation-export.mdc`](../../.cursor/rules/jira-automation-export.mdc) if hand-editing the JSON (valid UUIDs, `CONTAINS_NONE` not invented operators; field-changed trigger type `jira.issue.field.changed`).
 
 5. Do not commit real Bearer tokens. The placeholder in JSON is fine to commit; keys are not.
 

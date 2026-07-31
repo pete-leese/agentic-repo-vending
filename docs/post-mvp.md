@@ -15,7 +15,7 @@ Signed off MVP first, then implement these. The MVP already leaves extension poi
 
 1. Implement `OtlpMetricsSink` exporting to your collector
 2. Call `set_metrics_sink(...)` at process start
-3. Grafana dashboard panels: vend rate, eval fail reasons, p95 span duration, tokens by model (`composer-2.5` vs `claude-sonnet-5`)
+3. Grafana dashboard panels: vend rate, eval fail reasons, p95 span duration, tokens by model (`claude-sonnet-5` vs `composer-2.5`)
 
 ## 2. Additional AI harnesses
 

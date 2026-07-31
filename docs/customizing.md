@@ -22,8 +22,8 @@ Defaults in `repo-vend.yaml`:
 
 | Role | Default ID | Why |
 |------|------------|-----|
-| `models.orchestrator` | `composer-2.5` | Cheap extract from Jira text (Cursor Models pool) |
-| `models.eval` | `claude-sonnet-5` | Stronger independent naming judge (Other Models pool) |
+| `models.orchestrator` | `claude-sonnet-5` | Stronger extract from messy tickets (Other Models pool) |
+| `models.eval` | `composer-2.5` | Independent naming judge (Cursor Models pool) |
 
 Keep orchestrator ≠ eval. Env overrides: `ORCHESTRATOR_MODEL`, `EVAL_MODEL`. Discover IDs for your account with the Cursor SDK: `Cursor.models.list()`.
 

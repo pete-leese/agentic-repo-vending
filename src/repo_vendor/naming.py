@@ -15,6 +15,7 @@ from repo_vendor.models import (
     ProjectType,
     TerraformShape,
 )
+from repo_vendor.platform_aliases import infer_platform_from_text
 
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 _MULTI_DASH = re.compile(r"-{2,}")
@@ -126,8 +127,9 @@ def validate_name_and_template(
             errors.append(
                 "Terraform requests need a purpose slug and shape "
                 "(module vs root). Modules also need a platform (aws|gcp|azure). "
-                "Example: 'terraform module for S3 bucket on AWS' or label "
-                "tf-module + platform-aws."
+                "Platform can come from labels (platform-aws), the words aws/gcp/azure, "
+                "or a cloud-specific service (EKS→aws, GKE→gcp, AKS→azure, S3→aws). "
+                "Example: 'terraform module for EKS' or label tf-module + platform-aws."
             )
         elif intent.project_type == ProjectType.PYTHON:
             errors.append(
@@ -234,11 +236,7 @@ def infer_intent_from_labels_and_text(
         elif "tf-root" in labels_l:
             shape = TerraformShape.ROOT
 
-    platform: Platform | None = None
-    for p in Platform:
-        if f"platform-{p.value}" in labels_l or re.search(rf"\b{p.value}\b", blob):
-            platform = p
-            break
+    platform = infer_platform_from_text(blob)
 
     proposed = None
     m = re.search(r"repo\s*name\s*:\s*([a-zA-Z0-9._/\- ]+)", f"{summary}\n{description}", re.I)
