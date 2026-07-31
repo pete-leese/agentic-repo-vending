@@ -24,11 +24,11 @@ Create a `.env` locally (gitignored) or set Cloud Agent secrets:
 | Secret | Purpose |
 |--------|---------|
 | `CURSOR_API_KEY` | Cursor SDK (`composer-2.5` / `composer-2`) — **generate a new key** |
-| `GITHUB_TOKEN` | Create repos, branch protection, rename |
-| `JIRA_EMAIL` | Jira Cloud user email |
-| `JIRA_API_TOKEN` | [Atlassian API token](https://id.atlassian.com/manage-profile/security/api-tokens) |
+| `GITHUB_TOKEN` | Create repos, branch protection, rename (classic `repo` recommended) |
 
-Optional overrides: `ORCHESTRATOR_MODEL`, `EVAL_MODEL`, `TEMPLATE_TERRAFORM`, `TEMPLATE_PYTHON`, `ALLOW_LLM_FALLBACK`.
+Jira board I/O uses the **Atlassian** tool on the Cursor Automation — not `JIRA_EMAIL` / `JIRA_API_TOKEN`.
+
+Optional overrides: `ORCHESTRATOR_MODEL`, `EVAL_MODEL`, `TEMPLATE_TERRAFORM`, `TEMPLATE_PYTHON`, `ALLOW_LLM_FALLBACK`, status/label name env vars.
 
 ```bash
 python -m repo_vendor doctor
@@ -51,7 +51,8 @@ This creates public template repos:
 Create labels (or let Jira create on first use):
 
 - `repo-vend-approved` (required HITL)
-- `repo-vended` (idempotency after success)
+- `repo-vended` (idempotency after create)
+- `repo-vend-success` / `repo-vend-warning` / `repo-vend-error` (outcome)
 - Optional helpers: `type-terraform`, `type-python`, `tf-module`, `tf-root`, `platform-aws`, `platform-gcp`, `platform-azure`
 
 ## 5. Wire Jira → Cursor webhook

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -54,11 +55,32 @@ class DeterministicCheckResult(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class IssueSnapshot(BaseModel):
+    """Jira issue fields supplied by the Cursor Automation (via Atlassian tools)."""
+
+    key: str
+    summary: str = ""
+    description: str = ""
+    status: str = ""
+    labels: list[str] = Field(default_factory=list)
+
+
+class JiraUpdatePlan(BaseModel):
+    """Side-effects for the Automation to apply with Atlassian tools (not REST)."""
+
+    transition_to: str | None = None
+    labels_add: list[str] = Field(default_factory=list)
+    labels_remove: list[str] = Field(default_factory=list)
+    comment_markdown: str = ""
+
+
 class VendResult(BaseModel):
     success: bool
+    outcome: Literal["success", "warning", "error", "skipped"] = "error"
     issue_key: str
     repo_name: str | None = None
     repo_url: str | None = None
     template: str | None = None
     message: str
     skipped: bool = False
+    jira: JiraUpdatePlan = Field(default_factory=JiraUpdatePlan)

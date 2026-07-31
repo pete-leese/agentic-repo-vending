@@ -45,3 +45,15 @@ After a successful vend, a human may comment a new desired name. The system re-r
 
 ### Repo Vended Marker
 The Jira label **`repo-vended`**, applied after a successful create. Prevents duplicate vending (idempotency).
+
+### Vend Outcome Labels
+Result labels applied at the end of a vend run:
+- **`repo-vend-success`** — repo created and `main` branch protection applied
+- **`repo-vend-warning`** — repo created but a non-fatal step failed (e.g. branch protection)
+- **`repo-vend-error`** — vend did not complete (evals failed, GitHub create failed, etc.)
+
+### Vend Status Flow
+While vending: ticket moves to **In Progress**. On full or partial success: **Done**. On error: back to **In Review** for retry.
+
+### Jira Board I/O
+All reads and writes to the Jira board (issue fetch, transitions, labels, comments) are performed by the Cursor Automation using **Atlassian tools**. The vend CLI returns a **Jira update plan** (JSON) for the Automation to apply; it does not call Jira itself.
