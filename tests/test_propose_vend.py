@@ -70,6 +70,7 @@ def test_propose_pass_opens_spec_pr():
     assert result.proposed_name.startswith("python-")
     github.open_spec_pr.assert_called_once()
     assert "repo-vend-proposed" in result.jira.labels_add
+    assert settings.jira_label_error in result.jira.labels_remove
     assert "PASSED" in result.jira.comment_markdown
     assert "lgtm" in result.jira.comment_markdown.lower()
 

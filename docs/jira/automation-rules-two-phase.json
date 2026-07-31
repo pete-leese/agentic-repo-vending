@@ -270,7 +270,7 @@
       "clientKey": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
       "name": "repo-vend-propose-on-edit",
       "state": "DISABLED",
-      "description": "On summary/description edit while still New Request and not repo-vended, re-webhook Cursor Automation action=propose (add more context).",
+      "description": "On summary/description edit (edit only — not create) while still New Request and not repo-vended, re-webhook Cursor Automation action=propose (add more context).",
       "authorAccountId": "5f4622c1fdc3f5003ff4e536",
       "actor": {
         "type": "ACCOUNT_ID",
@@ -290,7 +290,7 @@
             { "type": "field", "value": "summary" },
             { "type": "field", "value": "description" }
           ],
-          "actions": []
+          "actions": ["edit"]
         },
         "conditions": [
           {
@@ -421,7 +421,7 @@
       "clientKey": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
       "name": "repo-vend-propose-on-label",
       "state": "DISABLED",
-      "description": "On helper label add (platform-|tf-|type-*) while New Request and not repo-vended, re-webhook action=propose. Ignores repo-vend-* outcome labels to avoid loops.",
+      "description": "On helper label add (platform-|tf-|type-*) via Edit only (not create), while New Request and not repo-vended, re-webhook action=propose. Ignores repo-vend-* outcome labels to avoid loops.",
       "authorAccountId": "5f4622c1fdc3f5003ff4e536",
       "actor": {
         "type": "ACCOUNT_ID",
@@ -440,7 +440,7 @@
           "fields": [
             { "type": "field", "value": "labels" }
           ],
-          "actions": []
+          "actions": ["edit"]
         },
         "conditions": [
           {

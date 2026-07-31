@@ -62,18 +62,20 @@ Body:
 ## Rule 2 — Re-propose on edit (more context)
 
 1. Trigger: **Field value changed** for **Summary** and **Description**
-2. Conditions: status = **New Request**; labels does **not** contain `repo-vended`
-3. Action: same propose webhook body as Rule 1
+2. **For:** **Edit issue** only (do **not** include Create — otherwise this fires on ticket create and duplicates Rule 1)
+3. Conditions: status = **New Request**; labels does **not** contain `repo-vended`
+4. Action: same propose webhook body as Rule 1
 
 ## Rule 3 — Re-propose on helper label
 
 1. Trigger: **Field value changed** for **Labels** (value added)
-2. Conditions:
+2. **For:** **Edit issue** only (same create-duplicate pitfall as Rule 2)
+3. Conditions:
    - status = **New Request**
    - labels does **not** contain `repo-vended`
    - `{{fieldChange.toString}}` matches helper labels: `platform-aws|gcp|azure`, `tf-module|tf-root`, `type-terraform|python|generic`  
      (does **not** match `repo-vend-*` outcome labels — avoids loops when the agent adds `repo-vend-proposed` / `repo-vend-error`)
-3. Action: same propose webhook body
+4. Action: same propose webhook body
 
 ## Rule 4 — Vend (Keyword Approval)
 

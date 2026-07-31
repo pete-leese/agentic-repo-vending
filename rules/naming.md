@@ -21,7 +21,7 @@ Comment likes/reactions are **not** used. Keep the Jira Automation comment condi
 
 | Label | Meaning |
 |-------|---------|
-| **`repo-vend-proposed`** | Spec PR opened; awaiting Keyword Approval |
+| **`repo-vend-proposed`** | Spec PR opened; proposal ready for Keyword Approval (clears prior error-state labels) |
 | **`repo-vended`** | Repo already created — do not create again |
 | **`repo-vend-success`** | Created and `main` protection applied |
 | **`repo-vend-warning`** | Repo created but a non-fatal step failed (e.g. branch protection / README rewrite) |

@@ -44,7 +44,7 @@ Triggered on: issue create, summary/description edit, or helper label add (platf
 4. Run:
    python3 -m repo_vendor propose --issue-file /tmp/issue.json --json
 5. Parse stdout JSON. Apply result.jira exactly with Atlassian tools:
-   - labels_remove / labels_add
+   - labels_remove / labels_add (on success: add repo-vend-proposed; remove repo-vend-error and other outcome error-state labels)
    - transition_to when set
    - comment_markdown (preserve markdown)
 6. Reply briefly (outcome, proposed name, Spec PR URL if any). Never print secrets.
