@@ -1,0 +1,45 @@
+---
+description: Jira Automation rule JSON export/import — valid UUIDs, comparison enums, never invent operators
+globs: docs/jira/**/*.json,docs/jira-setup.md,docs/jira/**/*.md
+alwaysApply: false
+---
+
+# Jira Automation export JSON
+
+When creating or editing **importable** Jira Automation workflows (JSON under `docs/jira/`), treat the file as if it came from **Export rules**. Hand-authored JSON that invents fields or enum values will fail import.
+
+Canonical working example: [`docs/jira/automation-rules-two-phase.json`](../../docs/jira/automation-rules-two-phase.json). Prefer **copying a fresh export** from this Jira site and editing payloads over writing JSON from scratch.
+
+## Hard requirements (import will fail otherwise)
+
+1. **`idUuid` must be a real UUID**  
+   Standard 36-char form (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`), hex only.  
+   Never use placeholders like `019fb900-propose-0000-…` — Jira deserializes `idUuid` as `java.util.UUID`.
+
+2. **Component / trigger / condition `id` values should be UUIDs**  
+   Match what Export rules emits (UUID strings), not slug names like `propose-trigger`.
+
+3. **`comparison` is a closed enum** — only use values Jira accepts, including:  
+   `EQUALS`, `CONTAINS`, `CONTAINS_ANY`, `CONTAINS_NONE`, `CONTAINS_ALL`, `NOT_CONTAIN`, `EMPTY`, `NOT_EMPTY`, `REGEX_MATCHES`, `NOT_REGEX_MATCHES`, `CONTAINS_REGEX`, `NOT_CONTAINS_REGEX`, `ONE_OF`, `NOT_ONE_OF`, `STARTS_WITH`, `ENDS_WITH`, …  
+   **Do not invent** operators such as `NOT_CONTAINS_ANY` (invalid).  
+   For “labels must not include X”, use **`CONTAINS_NONE`** with a multi-value label list (same shape as `CONTAINS_ANY`).
+
+4. **Prefer starting from Export**  
+   If unsure of a trigger type, condition schema, or `schemaVersion`, export an existing rule from the target site and adapt it. Do not guess Code Barrel bean shapes.
+
+## Project conventions for this repo
+
+- Two-phase flow: `action: propose` on issue **created** (status New Request); `action: vend` on **commented** with Keyword Approval. See `docs/jira-setup.md` and `repo-vend.yaml` for keywords.
+- Webhook URL: Cursor Automation webhook; `Authorization: Bearer <webhook_api_key>` (not global `CURSOR_API_KEY`).
+- Keep `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY` (or empty secure header) obvious so humans fill the real key after import.
+- Imported rules arrive **DISABLED** — document enable + disable of superseded rules.
+- After changing approval keywords in `repo-vend.yaml`, update the approve rule’s comment regex / comparator to match.
+
+## Checklist before telling the user a JSON is importable
+
+- [ ] `idUuid` values parse as UUIDs  
+- [ ] Every `comparison` value is in Jira’s enum (especially label conditions → `CONTAINS_ANY` / `CONTAINS_NONE`)  
+- [ ] Trigger `type` strings match known Automation types (`jira.issue.event.trigger:created`, `:commented`, `:transitioned`, …)  
+- [ ] `ruleScope` / project ARIs match this site (copy from a prior export)  
+- [ ] Custom webhook body is valid JSON with `{{issue.key}}` / `{{comment.body}}` smart values as needed  
+- [ ] No secrets committed (Bearer token placeholder only)

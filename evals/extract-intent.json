@@ -1,0 +1,23 @@
+{
+  "id": "extract-intent",
+  "description": "Orchestrator extract: Jira ticket → structured repo-vend intent",
+  "model_role": "orchestrator",
+  "system": "You extract repo-vend intent from a Jira ticket.\nReturn ONLY JSON with keys:\nproject_type: \"terraform\"|\"python\"|\"generic\"|null\nterraform_shape: \"module\"|\"root\"|null\nplatform: \"aws\"|\"gcp\"|\"azure\"|null\npurpose: short slug without prefixes\nproposed_name: full repo name if stated else null\nconfidence: 0-1\nmissing_info: string array\nnotes: string\nPrefer explicit Jira labels when present. Use project_type \"generic\" when the request is not clearly terraform or python. Follow rules/naming.md and repo-vend.yaml template map — do not invent missing terraform shape/platform.",
+  "user_template": "Summary: {summary}\nDescription: {description}\nLabels: {labels}\n",
+  "output_keys": [
+    "project_type",
+    "terraform_shape",
+    "platform",
+    "purpose",
+    "proposed_name",
+    "confidence",
+    "missing_info",
+    "notes"
+  ],
+  "allowed_values": {
+    "project_type": ["terraform", "python", "generic", null],
+    "terraform_shape": ["module", "root", null],
+    "platform": ["aws", "gcp", "azure", null]
+  },
+  "rules_ref": "rules/naming.md"
+}

@@ -10,6 +10,7 @@ from typing import Any
 
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.models import EvalVerdict, ExtractedIntent, Platform, ProjectType, TerraformShape
+from repo_vendor.prompts import format_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -112,30 +113,6 @@ def _extract_json(text: str) -> dict[str, Any]:
             return {}
 
 
-EXTRACT_SYSTEM = """You extract repo-vend intent from a Jira ticket.
-Return ONLY JSON with keys:
-project_type: "terraform"|"python"|null
-terraform_shape: "module"|"root"|null
-platform: "aws"|"gcp"|"azure"|null
-purpose: short slug without prefixes
-proposed_name: full repo name if stated else null
-confidence: 0-1
-missing_info: string array
-notes: string
-"""
-
-
-EVAL_SYSTEM = """You are an eval judge for repo naming and template selection.
-You must NOT invent missing platform/type. Return ONLY JSON:
-passed: bool
-proposed_name: string|null
-template: "template-terraform-repo"|"template-python-repo"|null
-reasons: string array
-missing_info: string array
-Be strict: fail if type/shape/platform/purpose cannot be determined.
-"""
-
-
 def extract_intent_with_harness(
     harness: ModelHarness,
     *,
@@ -149,12 +126,13 @@ def extract_intent_with_harness(
 
         return infer_intent_from_labels_and_text(summary, description, labels)
 
-    prompt = (
-        f"Summary: {summary}\n"
-        f"Description: {description}\n"
-        f"Labels: {', '.join(labels)}\n"
+    system, prompt = format_user_prompt(
+        "extract-intent",
+        summary=summary,
+        description=description,
+        labels=", ".join(labels),
     )
-    raw = harness.complete(model=model, prompt=prompt, system=EXTRACT_SYSTEM)
+    raw = harness.complete(model=model, prompt=prompt, system=system)
     data = _extract_json(raw)
     return ExtractedIntent(
         project_type=_enum_or_none(ProjectType, data.get("project_type")),
@@ -196,15 +174,13 @@ def eval_with_harness(
             or ["Insufficient information for naming/template selection"],
         )
 
-    prompt = (
-        f"Ticket summary: {summary}\n"
-        f"Description: {description}\n"
-        f"Extracted intent JSON: {intent.model_dump_json()}\n"
-        f"Validate naming conventions: "
-        f"terraform-module-<name>-<platform> | terraform-<name> | python-<purpose-kebab>. "
-        f"Templates: template-terraform-repo / template-python-repo.\n"
+    system, prompt = format_user_prompt(
+        "judge-naming",
+        summary=summary,
+        description=description,
+        intent_json=intent.model_dump_json(),
     )
-    raw = harness.complete(model=model, prompt=prompt, system=EVAL_SYSTEM)
+    raw = harness.complete(model=model, prompt=prompt, system=system)
     data = _extract_json(raw)
     return EvalVerdict(
         passed=_coerce_bool(data.get("passed")),

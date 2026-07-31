@@ -1,83 +1,75 @@
 # Cursor Automation setup
 
-Primary wake path: **Jira webhook** → Cursor Automation (**Atlassian tools** for all board I/O) → `repo_vendor` for evals + GitHub.
+Primary wake path: **Jira webhook** → Cursor Automation (**Atlassian tools** for board I/O) → `repo_vendor propose` / `vend`.
 
-## Required tools on the Automation
+## Required tools
 
-Enable **Atlassian** (Jira) MCP/tools on this Automation. All reads/writes to the KAN board go through Atlassian tools — not `JIRA_EMAIL` / `JIRA_API_TOKEN` in the CLI.
+Enable **Atlassian** on this Automation. Bind the Cloud Agent environment with `GITHUB_TOKEN` and `CURSOR_API_KEY`.
 
-Also bind the Cloud Agent **environment** that has `GITHUB_TOKEN` and `CURSOR_API_KEY`.
+Read [`rules/naming.md`](../rules/naming.md). Eval prompts: [`evals/`](../evals/).
 
 ## Instructions (paste into the Automation)
 
 ```text
 You are the repo-vend cloud runner for pete-leese/agentic-repo-vending.
 
-Jira rule: use ONLY the Atlassian/Jira tools connected to this Automation for every board interaction (read issue, transition, labels, comments). Never call Jira REST yourself and never ask repo_vendor to talk to Jira.
+Before inventing naming or HITL behavior, read and follow rules/naming.md.
+Eval prompts live in evals/*.json (loaded by repo_vendor).
 
-## Vend flow (webhook action missing or "vend")
+Jira rule: use ONLY Atlassian/Jira tools for every board interaction. Never call Jira REST; never ask repo_vendor to talk to Jira.
 
-1. Parse the webhook JSON for the Jira issue key (issue.key / key / issueKey).
-2. Using Atlassian tools, load the issue (summary, description, status, labels).
-3. HITL gate: status must be "In Review" AND label "repo-vend-approved" present.
-   - If not: add a markdown comment explaining the gate, add label repo-vend-error (remove other repo-vend-success/warning/error), stop.
-4. If label "repo-vended" is already present: comment that vend is skipped (idempotent) and stop.
-5. Transition the issue to "In Progress".
-6. Add a short markdown comment: "Repo vend started — running evals and GitHub create-from-template."
-7. Write an IssueSnapshot JSON file, e.g. /tmp/issue.json:
-   {"key":"KAN-N","summary":"...","description":"...","status":"In Review","labels":["..."]}
-   Use the status/labels from step 2 (pre-transition values for the HITL fields you already verified).
-8. Run:
-   python3 -m repo_vendor vend --issue-file /tmp/issue.json --json
-9. Parse the JSON on stdout. It includes:
-   - outcome: success | warning | error | skipped
-   - jira.transition_to, jira.labels_add, jira.labels_remove, jira.comment_markdown
-10. Using Atlassian tools, apply that plan exactly:
-    - remove labels in labels_remove (ignore missing)
-    - add labels in labels_add
-    - transition to transition_to when set (In Review on error, Done on success/warning)
-    - add comment using comment_markdown (preserve links/headings — markdown)
-11. Reply with a short summary (outcome + repo URL if any). Never print secrets.
+Parse webhook JSON for action (propose|vend) and issue.key.
 
-## Rename flow (action == "rename")
+## Propose (action == "propose" or missing)
 
-1. Load issue via Atlassian tools; require label repo-vended.
-2. Build IssueSnapshot JSON; run:
-   python3 -m repo_vendor rename --issue-file /tmp/issue.json --current-name <name> --comment "<text>" --json
-3. Apply result.jira with Atlassian tools as above.
+1. Load issue via Atlassian (summary, description, status, labels).
+2. If label repo-vended present: comment skipped; stop.
+3. Write /tmp/issue.json IssueSnapshot from step 1.
+4. Run: python3 -m repo_vendor propose --issue-file /tmp/issue.json --json
+5. Apply result.jira with Atlassian tools (labels + markdown comment).
+6. Reply briefly (proposed name + Spec PR URL if any). Never print secrets.
+
+## Vend (action == "vend")
+
+1. Load issue via Atlassian.
+2. If repo-vended: comment skipped; stop.
+3. Transition to In Progress.
+4. Write /tmp/issue.json; set APPROVAL from webhook comment.body.
+5. Run: python3 -m repo_vendor vend --issue-file /tmp/issue.json --approval-comment "$APPROVAL" --json
+6. Apply result.jira (Done on success/warning; outcome labels; markdown comment).
+7. Reply with outcome + repo URL. Never print secrets.
 
 ## Notes
 
-- repo_vendor does GitHub + evals only. It does not use JIRA_* credentials.
-- Webhook Authorization must use this Automation's webhook API key (not CURSOR_API_KEY).
-- Prefer python3 if python is missing on PATH.
+- Keyword Approval only: approved | lgtm | looks good | ship it | +1
+- No post-create rename.
+- Webhook Authorization uses this Automation's webhook API key (not CURSOR_API_KEY).
 ```
 
-## Webhook auth (Jira → Cursor)
-
-After Save, copy webhook URL + **webhook API key**. In Jira Send web request:
+## Webhook auth
 
 ```text
 Authorization: Bearer <webhook_api_key>
 Content-Type: application/json
 ```
 
-Body:
+## Next: generate Jira Automation import JSON
 
-```json
-{
-  "action": "vend",
-  "issue": { "key": "{{issue.key}}" }
-}
-```
+With the **webhook URL** and **webhook API key** in hand:
 
-## Cloud Agent secrets (environment bound to this Automation)
+1. Run skill **generate-jira-automation** (or `scripts/generate_jira_automation_import.py --webhook-url '…'`).
+2. Import `docs/jira/automation-rules-import.json` via **Space Settings → Automation → Global automation**  
+   (or `{jira.base_url}/jira/settings/automation` from `repo-vend.yaml`).
+3. Set `Authorization: Bearer <webhook_api_key>` on **each** Send web request action.
+4. Enable both rules.
+
+See [getting-started.md](getting-started.md) §6 and [jira-setup.md](jira-setup.md).
+
+## Secrets
 
 | Secret | Purpose |
 |--------|---------|
-| `GITHUB_TOKEN` | Create-from-template + branch protection (classic `repo` recommended) |
-| `CURSOR_API_KEY` | composer-2.5 / composer-2 via Cursor SDK |
+| `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
+| `CURSOR_API_KEY` | composer-2.5 / composer-2 |
 
-Jira access comes from the **Atlassian Automation tool**, not from `JIRA_*` env vars.
-
-Confirm [`.cursor/environment.json`](../.cursor/environment.json) install succeeds on a test run.
+Jira access: **Atlassian Automation tool** only.

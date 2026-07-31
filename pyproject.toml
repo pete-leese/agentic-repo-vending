@@ -15,6 +15,7 @@ dependencies = [
   "httpx>=0.27",
   "typer>=0.15",
   "rich>=13.9",
+  "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +35,9 @@ packages = ["src/repo_vendor"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/repo_vendor" = "repo_vendor"
+"evals" = "repo_vendor/_bundled/evals"
+"rules" = "repo_vendor/_bundled/rules"
+"repo-vend.yaml" = "repo_vendor/_bundled/repo-vend.yaml"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

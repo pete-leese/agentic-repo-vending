@@ -43,3 +43,4 @@ publish_one() {
 
 publish_one template-terraform-repo
 publish_one template-python-repo
+publish_one template-generic-repo

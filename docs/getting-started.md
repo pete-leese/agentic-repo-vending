@@ -17,18 +17,16 @@ pip install -e '.[dev,cursor]'
 
 Cloud Agents use [`.cursor/environment.json`](../.cursor/environment.json) so `pip install -e '.[dev,cursor]'` runs on VM start.
 
-## 2. Configure secrets
+## 2. Configure project + secrets
 
-Create a `.env` locally (gitignored) or set Cloud Agent secrets:
+Edit [`repo-vend.yaml`](../repo-vend.yaml) for board URL, approval keywords, and template names (see [customizing.md](customizing.md)).
 
 | Secret | Purpose |
 |--------|---------|
-| `CURSOR_API_KEY` | Cursor SDK (`composer-2.5` / `composer-2`) — **generate a new key** |
-| `GITHUB_TOKEN` | Create repos, branch protection, rename (classic `repo` recommended) |
+| `CURSOR_API_KEY` | Cursor SDK (`composer-2.5` / `composer-2`) |
+| `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
 
-Jira board I/O uses the **Atlassian** tool on the Cursor Automation — not `JIRA_EMAIL` / `JIRA_API_TOKEN`.
-
-Optional overrides: `ORCHESTRATOR_MODEL`, `EVAL_MODEL`, `TEMPLATE_TERRAFORM`, `TEMPLATE_PYTHON`, `ALLOW_LLM_FALLBACK`, status/label name env vars.
+Jira board I/O: **Atlassian** tool on the Cursor Automation (not Jira API tokens in the CLI).
 
 ```bash
 python -m repo_vendor doctor
@@ -41,38 +39,71 @@ chmod +x scripts/publish_templates.sh
 ./scripts/publish_templates.sh
 ```
 
-This creates public template repos:
-
-- `https://github.com/pete-leese/template-terraform-repo`
-- `https://github.com/pete-leese/template-python-repo`
+Creates/updates public templates including `template-terraform-repo`, `template-python-repo`, and `template-generic-repo`.
 
 ## 4. Jira labels
 
-Create labels (or let Jira create on first use):
+- `repo-vend-proposed` / `repo-vended`
+- `repo-vend-success` / `repo-vend-warning` / `repo-vend-error`
+- Optional helpers: `type-terraform`, `type-python`, `type-generic`, `tf-module`, `tf-root`, `platform-aws`, …
 
-- `repo-vend-approved` (required HITL)
-- `repo-vended` (idempotency after create)
-- `repo-vend-success` / `repo-vend-warning` / `repo-vend-error` (outcome)
-- Optional helpers: `type-terraform`, `type-python`, `tf-module`, `tf-root`, `platform-aws`, `platform-gcp`, `platform-azure`
+## 5. Cursor Automation
 
-## 5. Wire Jira → Cursor webhook
+1. Create a **Webhook** Automation on this repo (`docs/automation-setup.md`).
+2. Enable the **Atlassian** tool; bind the environment with secrets.
+3. Paste instructions from [automation-setup.md](automation-setup.md).
+4. Save and copy:
+   - **Webhook URL** (`https://api2.cursor.sh/automations/webhook/…`)
+   - **Webhook API key** (Automation-scoped Bearer — not `CURSOR_API_KEY`)
 
-Follow **[jira-setup.md](jira-setup.md)** (Cursor webhook Automation + Jira Send web request with `Authorization: Bearer <webhook_api_key>`).
+## 6. Generate + import Jira Automation rules
 
-## 6. First ticket
+Two rules: **propose** on issue create (New Request), **vend** on Keyword Approval comment.
 
-1. Create a KAN issue with free-text description, e.g.  
+**Option A — skill:** run **generate-jira-automation** in Cursor and paste your webhook URL when asked.
+
+**Option B — script:**
+
+```bash
+python3 scripts/generate_jira_automation_import.py \
+  --webhook-url 'https://api2.cursor.sh/automations/webhook/<YOUR_ID>'
+```
+
+Writes [`docs/jira/automation-rules-import.json`](jira/automation-rules-import.json) using your URL and settings from `repo-vend.yaml`.
+
+### Import
+
+1. Open **Space Settings → Automation → Global automation**, or go to  
+   `{jira.base_url}/jira/settings/automation`  
+   (from `repo-vend.yaml`, e.g. `https://YOUR.atlassian.net/jira/settings/automation`).
+2. **⋯ → Import rules** → upload `docs/jira/automation-rules-import.json`.
+3. Select `repo-vend-propose` and `repo-vend-approve`.
+4. For **each** rule’s **Send web request** (POST) action, set:
+
+```text
+Authorization: Bearer <webhook_api_key_from_this_Cursor_Automation>
+```
+
+   Replace the placeholder `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY` if present.
+5. **Enable** both rules; disable/delete any old one-shot vend rule.
+
+Full detail: [jira-setup.md](jira-setup.md). Export pitfalls: `.cursor/rules/jira-automation-export.mdc`.
+
+## 7. First ticket
+
+1. Create a KAN issue in **New Request**, e.g.  
    `I need a new repo for a terraform module for S3 bucket for my aws platform`
-2. Move to **In Review**
-3. Add `repo-vend-approved`
-4. Watch for the agent comment + new public GitHub repo
+2. Read the proposal comment (name, template, evals) + Spec PR
+3. Reply `lgtm` (or another keyword from `repo-vend.yaml`)
+4. Watch for the vended repo URL (README is rewritten away from template boilerplate)
 
 ## Naming cheat sheet
+
+Canonical rules: **[rules/naming.md](../rules/naming.md)**. Project config / templates: **[customizing.md](customizing.md)** · [`repo-vend.yaml`](../repo-vend.yaml).
 
 | Type | Pattern | Example |
 |------|---------|---------|
 | Terraform module | `terraform-module-<name>-<platform>` | `terraform-module-s3-bucket-aws` |
 | Terraform root | `terraform-<name>` | `terraform-eks-gitops-management` |
 | Python | `python-<purpose-kebab>` | `python-invoice-parser` |
-
-Snake_case / spaces are normalized to kebab-case automatically.
+| Generic | plain kebab | `billing-gateway` |

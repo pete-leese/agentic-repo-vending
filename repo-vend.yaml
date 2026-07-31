@@ -1,0 +1,40 @@
+# Project config for agentic-repo-vending (env vars still override secrets / local .env).
+# Customize board URLs, Keyword Approval phrases, templates, and status/label names here.
+# Docs: docs/customizing.md
+
+jira:
+  # Board humans use (documentation + doctor output)
+  board_url: "https://agentic-workflow-demo.atlassian.net/jira/software/projects/REPO/boards/2"
+  base_url: "https://agentic-workflow-demo.atlassian.net"
+  statuses:
+    new_request: "New Request"
+    processing: "In Progress"
+    done: "Done"
+  labels:
+    proposed: "repo-vend-proposed"
+    vended: "repo-vended"
+    success: "repo-vend-success"
+    warning: "repo-vend-warning"
+    error: "repo-vend-error"
+  approval:
+    # Comment phrases that approve a proposal (case-insensitive). "+1" is supported.
+    keywords:
+      - approved
+      - lgtm
+      - looks good
+      - ship it
+      - "+1"
+
+github:
+  owner: pete-leese
+  control_plane_repo: agentic-repo-vending
+  templates:
+    terraform: template-terraform-repo
+    python: template-python-repo
+    generic: template-generic-repo
+  # When ticket type is unclear, fall back to this project type / template key
+  default_project_type: generic
+
+models:
+  orchestrator: composer-2.5
+  eval: composer-2
