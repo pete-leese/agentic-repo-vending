@@ -51,7 +51,8 @@ This creates public template repos:
 Create labels (or let Jira create on first use):
 
 - `repo-vend-approved` (required HITL)
-- `repo-vended` (idempotency after success)
+- `repo-vended` (idempotency after create)
+- `repo-vend-success` / `repo-vend-warning` / `repo-vend-error` (outcome)
 - Optional helpers: `type-terraform`, `type-python`, `tf-module`, `tf-root`, `platform-aws`, `platform-gcp`, `platform-azure`
 
 ## 5. Wire Jira → Cursor webhook

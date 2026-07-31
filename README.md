@@ -13,8 +13,8 @@ Laptop-free workflow that vends public GitHub repositories from Jira tickets usi
 4. Orchestrator model **`composer-2.5`** extracts intent (free text and/or labels)
 5. Eval model **`composer-2`** judges naming + template choice
 6. Deterministic kebab/pattern rules must also pass (hard gate)
-7. On success: create public repo from `template-terraform-repo` or `template-python-repo`, protect `main`, comment URL, label **`repo-vended`**
-8. On failure: comment what is missing — no repo created
+7. On success: create public repo from `template-terraform-repo` or `template-python-repo`, protect `main`, comment URL, label **`repo-vended`** + **`repo-vend-success`** (or **`repo-vend-warning`** if protection fails), move to **Done**
+8. On failure: comment what is missing, label **`repo-vend-error`**, return to **In Review** — no repo created
 9. Rename: comment a new name on a vended ticket → re-eval → rename
 
 Setup: [docs/jira-setup.md](docs/jira-setup.md) (MCP is not a trigger).

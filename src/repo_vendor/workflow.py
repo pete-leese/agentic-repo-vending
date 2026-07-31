@@ -57,7 +57,8 @@ def _success_comment(
         if main_protected
         else (
             "- Guardrail: branch protection on `main` could not be applied; "
-            "please configure it manually (PR required)."
+            "please configure it manually (PR required). "
+            "Label `repo-vend-warning` was applied."
         )
     )
     return (
@@ -70,6 +71,12 @@ def _success_comment(
         f"name (for example: `Please rename to python-better-name`) and we will "
         f"re-evaluate and rename."
     )
+
+
+def _mark_error(jira: JiraClient, settings: Settings, issue_key: str, comment: str) -> None:
+    jira.add_comment(issue_key, comment)
+    jira.set_outcome_label(issue_key, "error")
+    jira.transition_to(issue_key, settings.jira_in_review_status)
 
 
 def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
@@ -99,8 +106,15 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                     f"(status={issue.status}, labels={issue.labels})."
                 )
                 jira.add_comment(issue_key, msg)
+                jira.set_outcome_label(issue_key, "error")
                 record_vend(False, issue_key=issue_key, reason="hitl")
                 return VendResult(success=False, issue_key=issue_key, message=msg)
+
+            jira.transition_to(issue_key, settings.jira_processing_status)
+            jira.add_comment(
+                issue_key,
+                "Repo vend started — running evals and GitHub create-from-template.",
+            )
 
             harness = get_harness(settings)
             with span("extract", model=settings.orchestrator_model):
@@ -122,7 +136,6 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                 )
             record_eval(verdict.passed, stage="llm", model=settings.eval_model)
 
-            # Merge LLM proposed name into intent when present
             if verdict.proposed_name and not intent.proposed_name:
                 intent.proposed_name = to_kebab(verdict.proposed_name)
 
@@ -136,7 +149,7 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                     errors.extend(verdict.reasons or ["LLM eval judge failed"])
                 missing = list(dict.fromkeys([*intent.missing_info, *verdict.missing_info]))
                 comment = _failure_comment(errors, missing)
-                jira.add_comment(issue_key, comment)
+                _mark_error(jira, settings, issue_key, comment)
                 record_vend(False, issue_key=issue_key, reason="eval")
                 return VendResult(success=False, issue_key=issue_key, message=comment)
 
@@ -150,7 +163,7 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                     f"`{settings.jira_vended_label}` was not applied — pick a new "
                     "name or resolve the collision, then re-run."
                 )
-                jira.add_comment(issue_key, msg)
+                _mark_error(jira, settings, issue_key, msg)
                 record_vend(False, issue_key=issue_key, reason="exists")
                 return VendResult(
                     success=False,
@@ -159,11 +172,18 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                     message=msg,
                 )
 
-            created = github.create_from_template(
-                template=template,
-                name=name,
-                description=f"Vended from Jira {issue_key}: {issue.summary}",
-            )
+            try:
+                created = github.create_from_template(
+                    template=template,
+                    name=name,
+                    description=f"Vended from Jira {issue_key}: {issue.summary}",
+                )
+            except Exception as exc:  # noqa: BLE001
+                msg = f"GitHub create-from-template failed: {exc}"
+                _mark_error(jira, settings, issue_key, msg)
+                record_vend(False, issue_key=issue_key, reason="github_create")
+                return VendResult(success=False, issue_key=issue_key, message=msg)
+
             main_protected = github.protect_main(created.name)
             jira.add_comment(
                 issue_key,
@@ -175,14 +195,20 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                 ),
             )
             jira.add_label(issue_key, settings.jira_vended_label)
-            record_vend(True, issue_key=issue_key, repo=created.name)
+            if main_protected:
+                jira.set_outcome_label(issue_key, "success")
+            else:
+                jira.set_outcome_label(issue_key, "warning")
+            jira.transition_to(issue_key, settings.jira_done_status)
+            record_vend(True, issue_key=issue_key, repo=created.name, protected=main_protected)
+            outcome = "Created" if main_protected else "Created (warning: branch protection failed)"
             return VendResult(
                 success=True,
                 issue_key=issue_key,
                 repo_name=created.name,
                 repo_url=created.html_url,
                 template=template,
-                message=f"Created {created.html_url}",
+                message=f"{outcome} {created.html_url}",
             )
 
 
@@ -198,7 +224,6 @@ def _parse_rename_candidate(text: str) -> str | None:
         m = pat.search(text)
         if m:
             return to_kebab(m.group(1))
-    # bare kebab line
     for line in text.splitlines():
         line = line.strip().strip("`")
         if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)+", line):
@@ -222,6 +247,7 @@ def rename_from_issue(
             if not jira.is_vended(issue):
                 msg = f"Issue {issue_key} is not marked `{settings.jira_vended_label}`."
                 jira.add_comment(issue_key, msg)
+                jira.set_outcome_label(issue_key, "error")
                 return VendResult(success=False, issue_key=issue_key, message=msg)
 
             proposed = _parse_rename_candidate(comment_text)
@@ -231,9 +257,9 @@ def rename_from_issue(
                     "Try: `Please rename to python-my-new-name`."
                 )
                 jira.add_comment(issue_key, msg)
+                jira.set_outcome_label(issue_key, "error")
                 return VendResult(success=False, issue_key=issue_key, message=msg)
 
-            # Build intent from labels + proposed name
             harness = get_harness(settings)
             intent = extract_intent_with_harness(
                 harness,
@@ -259,6 +285,7 @@ def rename_from_issue(
                     verdict.missing_info,
                 )
                 jira.add_comment(issue_key, comment)
+                jira.set_outcome_label(issue_key, "error")
                 return VendResult(success=False, issue_key=issue_key, message=comment)
 
             assert gate.normalized_name
@@ -269,7 +296,7 @@ def rename_from_issue(
                 if main_protected
                 else (
                     "Branch protection on `main` could not be applied; "
-                    "please configure it manually."
+                    "please configure it manually. Label `repo-vend-warning` applied."
                 )
             )
             msg = (
@@ -279,6 +306,7 @@ def rename_from_issue(
                 f"Are you happy with the repo name? If not, comment another name."
             )
             jira.add_comment(issue_key, msg)
+            jira.set_outcome_label(issue_key, "success" if main_protected else "warning")
             return VendResult(
                 success=True,
                 issue_key=issue_key,

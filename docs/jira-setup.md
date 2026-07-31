@@ -28,8 +28,20 @@ flowchart LR
 
 1. Cloud Agent secrets: `CURSOR_API_KEY`, `GITHUB_TOKEN`, `JIRA_EMAIL`, `JIRA_API_TOKEN`
 2. Optional: `JIRA_BASE_URL`, `JIRA_IN_REVIEW_STATUS`, label name overrides
-3. Labels: `repo-vend-approved` (HITL), `repo-vended` (set after success)
+3. Labels:
+   - `repo-vend-approved` (HITL)
+   - `repo-vended` (set after create)
+   - `repo-vend-success` | `repo-vend-warning` | `repo-vend-error` (outcome)
 4. Template repos published
+
+Board statuses used by the agent (override via env if your names differ):
+
+| Phase | Default status |
+|-------|----------------|
+| HITL gate | In Review |
+| While vending | In Progress |
+| Success / warning | Done |
+| Error (retry) | In Review |
 
 ---
 

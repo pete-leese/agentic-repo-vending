@@ -164,8 +164,15 @@ def test_repo_exists_does_not_apply_vended_label():
 
     assert result.success is False
     assert "already exists" in result.message
-    jira.add_label.assert_not_called()
-    jira.add_comment.assert_called_once()
+    # Must not stamp repo-vended on collision; outcome error label is OK.
+    vended_adds = [
+        c
+        for c in jira.add_label.call_args_list
+        if c.args and c.args[-1] == "repo-vended"
+    ]
+    assert vended_adds == []
+    assert jira.add_comment.call_count >= 1
+    jira.set_outcome_label.assert_called_with("KAN-1", "error")
 
 
 def test_vend_success_comment_when_protect_fails():
@@ -218,6 +225,8 @@ def test_vend_success_comment_when_protect_fails():
         result = vend_issue("KAN-2", settings=settings)
 
     assert result.success is True
-    comment = jira.add_comment.call_args.args[1]
+    comment = jira.add_comment.call_args_list[-1].args[1]
     assert "could not be applied" in comment
-    jira.add_label.assert_called_once_with("KAN-2", "repo-vended")
+    jira.add_label.assert_any_call("KAN-2", "repo-vended")
+    jira.set_outcome_label.assert_called_with("KAN-2", "warning")
+    jira.transition_to.assert_any_call("KAN-2", settings.jira_done_status)
