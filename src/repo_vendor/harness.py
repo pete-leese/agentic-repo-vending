@@ -28,15 +28,17 @@ class CursorSdkHarness(ModelHarness):
     name = "cursor-sdk"
 
     def __init__(self, api_key: str) -> None:
-        self.api_key = api_key
-
-    def complete(self, *, model: str, prompt: str, system: str | None = None) -> str:
+        # Import eagerly so get_harness can fall back when the extra is missing.
         try:
-            from cursor_sdk import Agent, LocalAgentOptions
+            from cursor_sdk import Agent, LocalAgentOptions  # noqa: F401
         except ImportError as exc:
             raise RuntimeError(
                 "cursor-sdk is not installed. Install with: pip install -e '.[cursor]'"
             ) from exc
+        self.api_key = api_key
+
+    def complete(self, *, model: str, prompt: str, system: str | None = None) -> str:
+        from cursor_sdk import Agent, LocalAgentOptions
 
         full = prompt if not system else f"{system}\n\n{prompt}"
         with Agent.create(
@@ -83,8 +85,11 @@ def get_harness(settings: Settings | None = None) -> ModelHarness:
     if settings.cursor_api_key:
         try:
             return CursorSdkHarness(settings.cursor_api_key)
-        except Exception:  # noqa: BLE001
-            logger.warning("Cursor SDK harness init failed; falling back if allowed")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cursor SDK harness init failed (%s); falling back if allowed",
+                exc,
+            )
     if settings.allow_llm_fallback:
         return HeuristicHarness()
     raise RuntimeError("CURSOR_API_KEY required and ALLOW_LLM_FALLBACK is false")
@@ -157,7 +162,7 @@ def extract_intent_with_harness(
         platform=_enum_or_none(Platform, data.get("platform")),
         purpose=data.get("purpose"),
         proposed_name=data.get("proposed_name"),
-        confidence=float(data.get("confidence") or 0),
+        confidence=_coerce_confidence(data.get("confidence")),
         missing_info=list(data.get("missing_info") or []),
         notes=str(data.get("notes") or "llm_extract"),
     )
@@ -202,12 +207,34 @@ def eval_with_harness(
     raw = harness.complete(model=model, prompt=prompt, system=EVAL_SYSTEM)
     data = _extract_json(raw)
     return EvalVerdict(
-        passed=bool(data.get("passed")),
+        passed=_coerce_bool(data.get("passed")),
         proposed_name=data.get("proposed_name"),
         template=data.get("template"),
         reasons=list(data.get("reasons") or []),
         missing_info=list(data.get("missing_info") or []),
     )
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes", "y"}
+    return False
+
+
+def _coerce_confidence(value: Any) -> float:
+    if value is None or value == "":
+        return 0.0
+    try:
+        conf = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(1.0, conf))
 
 
 def _enum_or_none(enum_cls: type, value: Any):

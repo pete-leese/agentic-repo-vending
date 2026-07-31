@@ -75,11 +75,11 @@ class GitHubClient:
             full_name=data["full_name"],
         )
 
-    def protect_main(self, name: str) -> None:
-        """Enforce no direct pushes to main (PR required)."""
+    def protect_main(self, name: str) -> bool:
+        """Enforce no direct pushes to main (PR required). Returns True if applied."""
         if self.settings.dry_run:
             logger.info("DRY_RUN branch protection main on %s", name)
-            return
+            return True
         payload = {
             "required_status_checks": None,
             "enforce_admins": True,
@@ -108,8 +108,9 @@ class GitHubClient:
                 r.status_code,
                 r.text,
             )
-            return
+            return False
         r.raise_for_status()
+        return True
 
     def rename_repo(self, current_name: str, new_name: str) -> CreatedRepo:
         if self.settings.dry_run:

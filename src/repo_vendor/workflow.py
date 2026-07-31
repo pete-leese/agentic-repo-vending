@@ -45,13 +45,27 @@ def _failure_comment(errors: list[str], missing: list[str]) -> str:
     return "\n".join(lines)
 
 
-def _success_comment(repo_name: str, repo_url: str, template: str) -> str:
+def _success_comment(
+    repo_name: str,
+    repo_url: str,
+    template: str,
+    *,
+    main_protected: bool = True,
+) -> str:
+    guardrail = (
+        "- Guardrail: direct pushes to `main` are blocked (PR required)."
+        if main_protected
+        else (
+            "- Guardrail: branch protection on `main` could not be applied; "
+            "please configure it manually (PR required)."
+        )
+    )
     return (
         f"Repository vended successfully.\n\n"
         f"- Name: `{repo_name}`\n"
         f"- URL: {repo_url}\n"
         f"- Template: `{template}`\n"
-        f"- Guardrail: direct pushes to `main` are blocked (PR required).\n\n"
+        f"{guardrail}\n\n"
         f"Are you happy with the repo name? If not, please comment a new kebab-case "
         f"name (for example: `Please rename to python-better-name`) and we will "
         f"re-evaluate and rename."
@@ -131,9 +145,12 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
             template = gate.template
 
             if github.repo_exists(name):
-                msg = f"GitHub repo `{name}` already exists; not recreating."
+                msg = (
+                    f"GitHub repo `{name}` already exists; not recreating. "
+                    f"`{settings.jira_vended_label}` was not applied — pick a new "
+                    "name or resolve the collision, then re-run."
+                )
                 jira.add_comment(issue_key, msg)
-                jira.add_label(issue_key, settings.jira_vended_label)
                 record_vend(False, issue_key=issue_key, reason="exists")
                 return VendResult(
                     success=False,
@@ -147,10 +164,15 @@ def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
                 name=name,
                 description=f"Vended from Jira {issue_key}: {issue.summary}",
             )
-            github.protect_main(created.name)
+            main_protected = github.protect_main(created.name)
             jira.add_comment(
                 issue_key,
-                _success_comment(created.name, created.html_url, template),
+                _success_comment(
+                    created.name,
+                    created.html_url,
+                    template,
+                    main_protected=main_protected,
+                ),
             )
             jira.add_label(issue_key, settings.jira_vended_label)
             record_vend(True, issue_key=issue_key, repo=created.name)
@@ -241,10 +263,19 @@ def rename_from_issue(
 
             assert gate.normalized_name
             renamed = github.rename_repo(current_name, gate.normalized_name)
-            github.protect_main(renamed.name)
+            main_protected = github.protect_main(renamed.name)
+            guardrail = (
+                "Branch protection on `main` is in place (PR required)."
+                if main_protected
+                else (
+                    "Branch protection on `main` could not be applied; "
+                    "please configure it manually."
+                )
+            )
             msg = (
                 f"Renamed repository to `{renamed.name}`.\n"
-                f"URL: {renamed.html_url}\n\n"
+                f"URL: {renamed.html_url}\n"
+                f"{guardrail}\n\n"
                 f"Are you happy with the repo name? If not, comment another name."
             )
             jira.add_comment(issue_key, msg)
