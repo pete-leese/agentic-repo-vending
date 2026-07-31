@@ -204,6 +204,35 @@ def validate_name_and_template(
     )
 
 
+def enrich_intent_from_heuristics(
+    intent: ExtractedIntent,
+    summary: str,
+    description: str,
+    labels: list[str],
+) -> ExtractedIntent:
+    """Fill gaps in LLM extract using label/text heuristics.
+
+    Upgrades generic/unknown project_type when ticket text clearly implies
+    terraform or python, unless an explicit ``type-*`` label is present.
+    """
+    labels_l = {lbl.lower() for lbl in labels}
+    heuristic = infer_intent_from_labels_and_text(summary, description, labels)
+
+    explicit_type = any(lbl.startswith("type-") for lbl in labels_l)
+    if not explicit_type and intent.project_type in (None, ProjectType.GENERIC):
+        if heuristic.project_type and heuristic.project_type != ProjectType.GENERIC:
+            intent.project_type = heuristic.project_type
+
+    if intent.terraform_shape is None and heuristic.terraform_shape:
+        intent.terraform_shape = heuristic.terraform_shape
+    if intent.platform is None and heuristic.platform:
+        intent.platform = heuristic.platform
+    if not intent.purpose and heuristic.purpose:
+        intent.purpose = heuristic.purpose
+
+    return intent
+
+
 def infer_intent_from_labels_and_text(
     summary: str,
     description: str,

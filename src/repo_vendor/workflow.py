@@ -8,6 +8,7 @@ from repo_vendor.approval import is_approval_comment
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.github_client import GitHubClient
 from repo_vendor.harness import eval_with_harness, extract_intent_with_harness, get_harness
+from repo_vendor.naming import enrich_intent_from_heuristics
 from repo_vendor.models import (
     IssueSnapshot,
     JiraUpdatePlan,
@@ -215,6 +216,12 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 summary=issue.summary,
                 description=issue.description,
                 labels=issue.labels,
+            )
+            intent = enrich_intent_from_heuristics(
+                intent,
+                issue.summary,
+                issue.description,
+                issue.labels,
             )
             if intent.platform is None:
                 from repo_vendor.platform_aliases import infer_platform_from_text
