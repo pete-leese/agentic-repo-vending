@@ -7,7 +7,12 @@ import logging
 from repo_vendor.approval import is_approval_comment
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.github_client import GitHubClient
-from repo_vendor.harness import eval_with_harness, extract_intent_with_harness, get_harness
+from repo_vendor.harness import (
+    derive_confidence,
+    eval_with_harness,
+    extract_intent_with_harness,
+    get_harness,
+)
 from repo_vendor.models import (
     IssueSnapshot,
     JiraUpdatePlan,
@@ -23,9 +28,16 @@ from repo_vendor.naming import (
     to_kebab,
     validate_name_and_template,
 )
+from repo_vendor.cursor_run import format_cursor_agent_line, resolve_cursor_agent
 from repo_vendor.observability import record_eval, record_vend, span
 from repo_vendor.readme_gen import build_vended_readme
-from repo_vendor.spec import request_rel_path, spec_from_yaml, spec_to_yaml
+from repo_vendor.spec import (
+    format_spec_pr_body,
+    format_spec_pr_title,
+    request_rel_path,
+    spec_from_yaml,
+    spec_to_yaml,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +51,31 @@ def _outcome_labels(settings: Settings, outcome: str) -> tuple[list[str], list[s
     return [chosen], [lbl for lbl in all_outcomes if lbl != chosen]
 
 
-def _failure_markdown(errors: list[str], missing: list[str]) -> str:
+def _meta_lines(
+    *,
+    confidence: float | None = None,
+    cursor_agent_id: str | None = None,
+    cursor_agent_url: str | None = None,
+) -> list[str]:
+    lines: list[str] = []
+    if confidence is not None:
+        lines.append(f"- **Confidence:** `{confidence:.2f}`")
+    agent_line = format_cursor_agent_line(
+        agent_id=cursor_agent_id, agent_url=cursor_agent_url
+    )
+    if agent_line:
+        lines.append(agent_line)
+    return lines
+
+
+def _failure_markdown(
+    errors: list[str],
+    missing: list[str],
+    *,
+    confidence: float | None = None,
+    cursor_agent_id: str | None = None,
+    cursor_agent_url: str | None = None,
+) -> str:
     lines = [
         "## Repo vend proposal failed (evals)",
         "",
@@ -56,6 +92,13 @@ def _failure_markdown(errors: list[str], missing: list[str]) -> str:
         lines.append(f"- {e}")
     for m in missing:
         lines.append(f"- Missing: {m}")
+    meta = _meta_lines(
+        confidence=confidence,
+        cursor_agent_id=cursor_agent_id,
+        cursor_agent_url=cursor_agent_url,
+    )
+    if meta:
+        lines.extend(["", "### Run", *meta])
     lines.extend(
         [
             "",
@@ -81,6 +124,9 @@ def _proposal_markdown(
     reasons: list[str],
     missing: list[str],
     pr_url: str | None,
+    confidence: float | None = None,
+    cursor_agent_id: str | None = None,
+    cursor_agent_url: str | None = None,
 ) -> str:
     eval_ok = llm_passed and deterministic_passed
     indicator = "PASSED" if eval_ok else "FAILED"
@@ -94,6 +140,13 @@ def _proposal_markdown(
         f"- **Proposed name:** `{proposed_name}`",
         f"- **Template:** `{template}`",
     ]
+    lines.extend(
+        _meta_lines(
+            confidence=confidence,
+            cursor_agent_id=cursor_agent_id,
+            cursor_agent_url=cursor_agent_url,
+        )
+    )
     if pr_url:
         lines.append(f"- **Spec Request PR:** [{pr_url}]({pr_url})")
     if reasons:
@@ -104,7 +157,9 @@ def _proposal_markdown(
         [
             "",
             "### Approve",
-            "Reply with one of: `approved`, `lgtm`, `looks good`, `ship it`, or `+1`.",
+            "Reply to this proposal (or add a new top-level comment) with one of: "
+            "`approved`, `lgtm`, `looks good`, `ship it`, or `+1`.",
+            "Threaded replies are fine — the keyword only needs to appear in your reply text.",
             "That merges the Spec (if open) and creates the GitHub repository.",
             "There is no post-create rename — fix the ticket and re-propose if the name is wrong.",
         ]
@@ -119,6 +174,8 @@ def _success_markdown(
     *,
     main_protected: bool,
     readme_updated: bool = True,
+    cursor_agent_id: str | None = None,
+    cursor_agent_url: str | None = None,
 ) -> str:
     guardrail = (
         "Direct pushes to `main` are blocked (PR required)."
@@ -137,19 +194,74 @@ def _success_markdown(
             "please replace the template README manually. Outcome: `repo-vend-warning`."
         )
     )
-    return "\n".join(
+    lines = [
+        "## Repository vended",
+        "",
+        f"- **Name:** `{repo_name}`",
+        f"- **URL:** [{repo_url}]({repo_url})",
+        f"- **Template:** `{template}`",
+        f"- **Guardrail:** {guardrail}",
+        f"- **README:** {readme_line}",
+    ]
+    lines.extend(
+        _meta_lines(
+            cursor_agent_id=cursor_agent_id,
+            cursor_agent_url=cursor_agent_url,
+        )
+    )
+    lines.extend(
         [
-            "## Repository vended",
-            "",
-            f"- **Name:** `{repo_name}`",
-            f"- **URL:** [{repo_url}]({repo_url})",
-            f"- **Template:** `{template}`",
-            f"- **Guardrail:** {guardrail}",
-            f"- **README:** {readme_line}",
             "",
             "Name changes after create are not supported — open a new Repo Vend Request if needed.",
         ]
     )
+    return "\n".join(lines)
+
+
+def _approved_work_description(
+    *,
+    issue_key: str,
+    spec: SpecRequest,
+    repo_name: str,
+    repo_url: str,
+    outcome: str,
+) -> str:
+    """Board Description after Keyword Approval + vend — what was approved/performed."""
+    intent = spec.intent or {}
+    project_type = intent.get("project_type") or "unknown"
+    shape = intent.get("terraform_shape")
+    platform = intent.get("platform")
+    purpose = intent.get("purpose")
+    lines = [
+        f"## Approved repo vend ({issue_key})",
+        "",
+        "Keyword Approval accepted. The following was performed:",
+        "",
+        f"- **Repository:** [{repo_name}]({repo_url})",
+        f"- **Template:** `{spec.template}`",
+        f"- **Project type:** `{project_type}`",
+    ]
+    if shape:
+        lines.append(f"- **Terraform shape:** `{shape}`")
+    if platform:
+        lines.append(f"- **Platform:** `{platform}`")
+    if purpose:
+        lines.append(f"- **Purpose:** `{purpose}`")
+    lines.extend(
+        [
+            f"- **Outcome:** `{outcome}`",
+            "",
+            "### Original request",
+            "",
+            f"**Summary:** {spec.summary or '(none)'}",
+            "",
+            spec.description.strip() or "(no original description)",
+            "",
+            "---",
+            "Post-create rename is not supported. Open a new Repo Vend Request to change the name.",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def _error_plan(settings: Settings, markdown: str) -> JiraUpdatePlan:
@@ -167,6 +279,7 @@ def _success_vend_plan(
     *,
     outcome: str,
     markdown: str,
+    set_description: str | None = None,
 ) -> JiraUpdatePlan:
     add, remove = _outcome_labels(settings, outcome)
     add = [*add, settings.jira_vended_label]
@@ -175,6 +288,7 @@ def _success_vend_plan(
         labels_add=add,
         labels_remove=[*remove, settings.jira_proposed_label],
         comment_markdown=markdown,
+        set_description=set_description,
     )
 
 
@@ -197,10 +311,16 @@ def is_vended(issue: IssueSnapshot, settings: Settings) -> bool:
     return settings.jira_vended_label in issue.labels
 
 
-def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> PhaseResult:
+def propose_issue(
+    issue: IssueSnapshot,
+    settings: Settings | None = None,
+    *,
+    cursor_agent_id: str | None = None,
+) -> PhaseResult:
     """Run evals; on pass open Spec Request PR and return Jira proposal plan."""
     settings = settings or get_settings()
     key = issue.key
+    agent_id, agent_url = resolve_cursor_agent(agent_id=cursor_agent_id)
     with span("propose", issue_key=key):
         if is_vended(issue, settings):
             msg = f"Issue {key} already has `{settings.jira_vended_label}`; skipping propose."
@@ -266,7 +386,14 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
         missing = list(dict.fromkeys([*intent.missing_info, *verdict.missing_info]))
 
         if not verdict.passed or not gate.passed:
-            comment = _failure_markdown(errors, missing)
+            intent.confidence = derive_confidence(intent, gate_passed=False)
+            comment = _failure_markdown(
+                errors,
+                missing,
+                confidence=intent.confidence,
+                cursor_agent_id=agent_id,
+                cursor_agent_url=agent_url,
+            )
             record_vend(False, issue_key=key, reason="eval_propose")
             return PhaseResult(
                 success=False,
@@ -274,12 +401,16 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 phase="propose",
                 issue_key=key,
                 message=comment,
+                confidence=intent.confidence,
+                cursor_agent_id=agent_id,
+                cursor_agent_url=agent_url,
                 jira=_error_plan(settings, comment),
             )
 
         assert gate.normalized_name and gate.template
         name = gate.normalized_name
         template = gate.template
+        intent.confidence = derive_confidence(intent, gate_passed=True)
         path = request_rel_path(key)
         spec = SpecRequest(
             issue_key=key,
@@ -304,6 +435,10 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                     issue_key=key,
                     path=path,
                     content=spec_to_yaml(spec),
+                    title=format_spec_pr_title(spec),
+                    body=format_spec_pr_body(
+                        spec, jira_base_url=settings.jira_base_url
+                    ),
                 )
                 pr_url = pr.html_url
                 spec.pr_url = pr_url
@@ -326,6 +461,9 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 template=template,
                 request_path=path,
                 message=msg,
+                confidence=intent.confidence,
+                cursor_agent_id=agent_id,
+                cursor_agent_url=agent_url,
                 jira=_error_plan(settings, f"## Propose failed\n\n{msg}"),
             )
 
@@ -338,6 +476,9 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
             reasons=list(verdict.reasons or []),
             missing=missing,
             pr_url=pr_url,
+            confidence=intent.confidence,
+            cursor_agent_id=agent_id,
+            cursor_agent_url=agent_url,
         )
         record_vend(True, issue_key=key, repo=name, phase="propose")
         return PhaseResult(
@@ -350,6 +491,9 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
             request_path=path,
             pr_url=pr_url,
             message=f"Proposal ready for {name}",
+            confidence=intent.confidence,
+            cursor_agent_id=agent_id,
+            cursor_agent_url=agent_url,
             jira=_proposal_ready_plan(settings, markdown),
         )
 
@@ -359,10 +503,12 @@ def vend_issue(
     *,
     approval_comment: str | None = None,
     settings: Settings | None = None,
+    cursor_agent_id: str | None = None,
 ) -> PhaseResult:
     """Merge Spec if needed, load requests/<key>.yaml, create-from-template."""
     settings = settings or get_settings()
     key = issue.key
+    agent_id, agent_url = resolve_cursor_agent(agent_id=cursor_agent_id)
     with span("vend", issue_key=key):
         if is_vended(issue, settings):
             msg = (
@@ -497,12 +643,21 @@ def vend_issue(
             template,
             main_protected=main_protected,
             readme_updated=readme_ok,
+            cursor_agent_id=agent_id,
+            cursor_agent_url=agent_url,
         )
         record_vend(True, issue_key=key, repo=created.name, protected=main_protected)
         summary = (
             f"Created {created.html_url}"
             if main_protected
             else f"Created (warning: branch protection failed) {created.html_url}"
+        )
+        description = _approved_work_description(
+            issue_key=key,
+            spec=spec,
+            repo_name=created.name,
+            repo_url=created.html_url,
+            outcome=outcome,
         )
         return PhaseResult(
             success=True,
@@ -515,5 +670,12 @@ def vend_issue(
             proposed_name=name,
             request_path=path,
             message=summary,
-            jira=_success_vend_plan(settings, outcome=outcome, markdown=markdown),
+            cursor_agent_id=agent_id,
+            cursor_agent_url=agent_url,
+            jira=_success_vend_plan(
+                settings,
+                outcome=outcome,
+                markdown=markdown,
+                set_description=description,
+            ),
         )

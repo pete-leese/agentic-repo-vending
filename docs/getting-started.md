@@ -103,7 +103,7 @@ Full detail: [jira-setup.md](jira-setup.md). Export pitfalls: `.cursor/rules/jir
 1. Create a REPO issue in **New Request**, e.g.  
    `I need a new repo for a terraform module for S3 bucket for my aws platform`
 2. Read the proposal comment (name, template, evals) + Spec PR
-3. Reply `lgtm` (or another keyword from `repo-vend.yaml`)
+3. Reply to the proposal with `lgtm` (or another keyword from `repo-vend.yaml`; threaded reply is fine)
 4. Watch for the vended repo URL (README is rewritten away from template boilerplate)
 
 ## Naming cheat sheet

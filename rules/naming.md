@@ -27,7 +27,7 @@ Comment likes/reactions are **not** used. Keep the Jira Automation comment condi
 | **`repo-vend-warning`** | Repo created but a non-fatal step failed (e.g. branch protection / README rewrite) |
 | **`repo-vend-error`** | Propose or vend did not complete |
 
-Status flow: **New Request** (create / re-propose) → propose → **In Progress** while vending → **Done** on success/warning.
+Status flow: **New Request** (create / re-propose) → propose → Keyword Approval → **In Progress** while vending → **Done** on success/warning. After a successful vend, the agent replaces the issue **Description** with a short summary of what was approved and created (repo URL, template, type/platform).
 
 ## Helper labels (optional)
 

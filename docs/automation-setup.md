@@ -27,11 +27,19 @@ Jira rule: use ONLY Atlassian/Jira tools for every board interaction (read issue
 Parse the webhook JSON for:
 - action: "propose" | "vend" (if missing, treat as "propose")
 - issue key: issue.key / key / issueKey
-- for vend: comment.body (Keyword Approval text)
+- for vend: comment.body / comment.body.text (Keyword Approval text)
 
 There is NO rename action. Do not run rename. Wrong names are fixed by re-proposing before approval.
 
 Platform: terraform modules need aws|gcp|azure. Prefer labels / explicit cloud words; otherwise derive from services (EKS/ECS/S3/…→aws, GKE/GCS/…→gcp, AKS/…→azure). Do not demand platform-aws when the service already implies the cloud.
+
+Always resolve THIS Cloud Agent run id (`bc-…`) before calling the CLI:
+- Prefer Cursor Cloud MCP `run-info` (id / url)
+- Else any env like CURSOR_CLOUD_AGENT_ID / CURSOR_AGENT_ID
+Pass it as: --cursor-agent-id "$AGENT_ID"
+Jira comments must include Confidence (from CLI) and a hyperlink to https://cursor.com/agents/<bc-id>.
+If comment_markdown is missing the Cursor agent line, append:
+- **Cursor agent:** [`bc-…`](https://cursor.com/agents/bc-…)
 
 ## Propose (action == "propose")
 
@@ -41,14 +49,15 @@ Triggered on: issue create, summary/description edit, or helper label add (platf
 2. If label "repo-vended" is present: add a short comment that propose is skipped (idempotent) and stop.
 3. Write /tmp/issue.json as IssueSnapshot JSON from step 1, for example:
    {"key":"REPO-N","summary":"...","description":"...","status":"New Request","labels":["..."]}
-4. Run:
-   python3 -m repo_vendor propose --issue-file /tmp/issue.json --json
-5. Parse stdout JSON. Apply result.jira exactly with Atlassian tools:
+4. Resolve AGENT_ID (bc-…) for this run (see above).
+5. Run:
+   python3 -m repo_vendor propose --issue-file /tmp/issue.json --cursor-agent-id "$AGENT_ID" --json
+6. Parse stdout JSON. Apply result.jira exactly with Atlassian tools:
    - labels_remove / labels_add (on success: add repo-vend-proposed; remove repo-vend-error and other outcome error-state labels)
    - transition_to when set
-   - comment_markdown (preserve markdown)
-6. Reply briefly (outcome, proposed name, Spec PR URL if any). Never print secrets.
-7. Re-propose is expected when humans add context; update Spec PR / proposal comment from the latest extract.
+   - comment_markdown (preserve markdown; must show Confidence + Cursor agent link)
+7. Reply briefly (outcome, proposed name, Spec PR URL if any). Never print secrets.
+8. Re-propose is expected when humans add context; update Spec PR / proposal comment from the latest extract.
 
 ## Vend (action == "vend")
 
@@ -56,16 +65,22 @@ Triggered on: issue create, summary/description edit, or helper label add (platf
 2. If label "repo-vended" is present: comment skipped and stop.
 3. Transition the issue to "In Progress" (or the processing status from repo-vend.yaml).
 4. Write /tmp/issue.json IssueSnapshot from the loaded issue.
-5. Set APPROVAL to the webhook comment body (e.g. "lgtm").
-6. Run:
-   python3 -m repo_vendor vend --issue-file /tmp/issue.json --approval-comment "$APPROVAL" --json
-7. Apply result.jira with Atlassian tools (Done on success/warning; outcome labels; markdown comment).
-8. Reply with outcome + repo URL if any. Never print secrets.
+5. Set APPROVAL to the webhook comment body text (prefer comment.body.text).
+6. Resolve AGENT_ID (bc-…) for this run.
+7. Run:
+   python3 -m repo_vendor vend --issue-file /tmp/issue.json --approval-comment "$APPROVAL" --cursor-agent-id "$AGENT_ID" --json
+8. Apply result.jira with Atlassian tools, in this order:
+   a. labels_remove / labels_add (must add repo-vended before editing Description)
+   b. transition_to when set (Done on success/warning)
+   c. if set_description is set, replace the issue Description with that text (approved-work summary)
+   d. comment_markdown (preserve markdown; include Cursor agent link)
+9. Reply with outcome + repo URL if any. Never print secrets.
 
 ## Notes
 
 - Keyword Approval phrases (defaults): approved | lgtm | looks good | ship it | +1
   (override list is in repo-vend.yaml — keep Jira Automation comment condition in sync)
+- Jira approve rule must match {{comment.body.text}} with REGEX_CONTAINS
 - Dependencies install via .cursor/environment.json; prefer python3 if python is missing.
 - Webhook Authorization must use this Automation's webhook API key (not CURSOR_API_KEY).
 ```

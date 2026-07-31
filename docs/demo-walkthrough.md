@@ -15,7 +15,7 @@
    - **Summary:** Terraform S3 module for AWS
    - **Description:** `I need a new repo for a terraform module for S3 bucket for my aws platform`
 2. Expect propose comment: evals PASSED, proposed name, template, Spec PR link
-3. Reply **`lgtm`**
+3. Reply to the proposal with **`lgtm`** (threaded reply OK) — or a new top-level comment with the same keyword
 4. Expect: Spec PR merged, public repo created, `repo-vended`, **Done**
 
 ## Path B — Eval failure then fix

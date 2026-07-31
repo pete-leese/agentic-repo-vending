@@ -81,27 +81,34 @@ Body:
 
 1. Trigger: **Issue commented**
 2. Conditions:
-   - Comment body matches: `(?i)(?:\b(?:approved|lgtm|looks good|ship it)\b|(?<!\w)\+1(?!\w))`
-   - Labels does **not** contain `repo-vended` (if condition available)
+   - First value: **`{{comment.body.text}}`** (plain text — required for threaded replies; `{{comment.body}}` is often ADF/wiki and fails the regex)
+   - Operator: **Contains regular expression** (`REGEX_CONTAINS`)
+   - Regex: `(?i)(?:\b(?:approved|lgtm|looks\s+good|ship\s+it)\b|\+1)`  
+     Avoid lookbehind (`(?<!…)`): Jira Automation often rejects it and the condition never matches.
+   - Labels does **not** contain `repo-vended`
 3. Action: POST same webhook
 
 ```json
 {
   "action": "vend",
   "issue": { "key": "{{issue.key}}" },
-  "comment": { "body": "{{comment.body}}" }
+  "comment": { "body": "{{comment.body.text}}" }
 }
 ```
 
 Keyword list: `approved`, `lgtm`, `looks good`, `ship it`, `+1`.  
 Comment **likes/reactions are not supported** as triggers.
 
+**Top-level or nested reply both work** when the condition uses `{{comment.body.text}}` + `REGEX_CONTAINS`. Nested replies are where `{{comment.body}}` most often fails (ADF / quote markup).
+
+If audit log says **No actions performed**, open the audit entry — usually the regex condition failed. Confirm First value is `{{comment.body.text}}`, operator is Contains regex, then reply `lgtm` again.
+
 ## Human workflow
 
 1. Create ticket in **New Request** (free text and/or helper labels)
 2. Agent comments with proposal (name, template, eval pass/fail) + Spec PR link
 3. If more context is needed: edit summary/description **or** add `tf-module` / `platform-aws` / … → propose runs again
-4. Reply `lgtm` (or another approval keyword)
+4. Reply to the proposal with `lgtm` (threaded reply is OK) or add a top-level comment with an approval keyword
 5. Agent merges Spec PR, creates public GitHub repo, comments URL
 
 Wrong name: edit description/labels and re-trigger propose **before** approving. No post-create rename.
@@ -158,7 +165,7 @@ Example rule export shape (sanitized):
           "value": {
             "url": "https://api2.cursor.sh/automations/webhook/<id>",
             "method": "POST",
-            "customBody": "{ \"action\": \"vend\", \"issue\": { \"key\": \"{{issue.key}}\" }, \"comment\": { \"body\": \"{{comment.body}}\" } }"
+            "customBody": "{ \"action\": \"vend\", \"issue\": { \"key\": \"{{issue.key}}\" }, \"comment\": { \"body\": \"{{comment.body.text}}\" } }"
           }
         }
       ]
@@ -167,7 +174,7 @@ Example rule export shape (sanitized):
 }
 ```
 
-Wire the comment-match condition in the Jira UI (Advanced compare / regex on `{{comment.body}}`).
+Wire the comment-match condition in the Jira UI (Advanced compare / regex on `{{comment.body.text}}`).
 
 ## Optional env overrides
 
