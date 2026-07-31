@@ -1,0 +1,28 @@
+issue_key: REPO-14
+summary: 'I need a repo for a s3 bucket terraform module '
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: s3-bucket
+  proposed_name: terraform-module-s3-bucket-aws
+  confidence: 0.0
+  missing_info: []
+  notes: llm_extract
+proposed_name: terraform-module-s3-bucket-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Request is a Terraform module for an S3 bucket; infra phrasing with module + S3
+    maps to terraform/module, not generic.
+  - Platform aws is set in intent and implied by S3 (AWS service alias); platform-aws
+    label is not required.
+  - Proposed name terraform-module-s3-bucket-aws matches terraform-module-<purpose>-<platform>
+    with purpose s3-bucket.
+  - Terraform project type maps to template-terraform-repo per repo-vend rules.
+  missing_info: []
+status: proposed
+pr_url: null
