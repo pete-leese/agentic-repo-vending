@@ -40,7 +40,7 @@ class ExtractedIntent(BaseModel):
 
 
 class EvalVerdict(BaseModel):
-    """LLM eval judge output (composer-2)."""
+    """LLM eval judge output (model from repo-vend.yaml / EVAL_MODEL)."""
 
     passed: bool
     proposed_name: str | None = None

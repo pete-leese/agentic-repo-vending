@@ -4,7 +4,9 @@ description: >-
   Generate an importable Jira Automation JSON for the two-phase propose/vend
   flow from a Cursor Automation webhook URL and repo-vend.yaml. Use when the
   user asks to generate/export Jira automation rules, wire a Cursor webhook into
-  Jira, or produce docs/jira/*.json for import.
+  Jira, or produce docs/jira/*.json for import. Also run these steps automatically
+  when setup-repo-vend-automation receives a pasted webhook URL (do not make the
+  user invoke this skill separately in that flow).
 disable-model-invocation: false
 ---
 

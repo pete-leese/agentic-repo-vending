@@ -14,7 +14,20 @@ The control-plane repo reads **[`repo-vend.yaml`](../repo-vend.yaml)** at runtim
 | `jira.approval.keywords` | Phrases that approve a proposal (`approved`, `lgtm`, …) |
 | `github.templates.*` | Which GitHub **template repo** maps to terraform / python / generic |
 | `github.default_project_type` | Fallback when the ticket is not clearly terraform or python (`generic`) |
-| `models.*` | Orchestrator / eval model IDs |
+| `models.*` | Orchestrator / eval model IDs (must differ; see below) |
+
+### Models
+
+Defaults in `repo-vend.yaml`:
+
+| Role | Default ID | Why |
+|------|------------|-----|
+| `models.orchestrator` | `composer-2.5` | Cheap extract from Jira text (Cursor Models pool) |
+| `models.eval` | `claude-sonnet-5` | Stronger independent naming judge (Other Models pool) |
+
+Keep orchestrator ≠ eval. Env overrides: `ORCHESTRATOR_MODEL`, `EVAL_MODEL`. Discover IDs for your account with the Cursor SDK: `Cursor.models.list()`.
+
+The **Cloud Automation** model (Automations UI / prefill) is separate — it runs Atlassian tools + CLI; keep that on `composer-2.5` unless you intentionally change the Automations editor.
 
 After editing YAML, restart the Cloud Agent run (no rebuild required if the file is in the checkout).
 

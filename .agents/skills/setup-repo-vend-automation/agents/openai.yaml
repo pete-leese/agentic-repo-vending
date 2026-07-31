@@ -1,0 +1,5 @@
+interface:
+  display_name: "Setup repo-vend Automation"
+  short_description: "Prefill Cursor Automation; on webhook URL paste, auto-generate Jira import JSON"
+policy:
+  allow_implicit_invocation: true

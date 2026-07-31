@@ -4,8 +4,8 @@
 
 - [ ] Templates published (`./scripts/publish_templates.sh`)
 - [ ] Secrets: `CURSOR_API_KEY`, `GITHUB_TOKEN`
-- [ ] Cursor Webhook Automation + Atlassian tool ([automation-setup.md](automation-setup.md))
-- [ ] Jira rules imported via `scripts/generate_jira_automation_import.py` (or skill **generate-jira-automation**)
+- [ ] Cursor Webhook Automation + Atlassian tool (skill **setup-repo-vend-automation**, or [automation-setup.md](automation-setup.md))
+- [ ] Jira rules imported via skill / `scripts/generate_jira_automation_import.py` (or **generate-jira-automation**)
 - [ ] Both rules’ **Send web request** have `Authorization: Bearer <webhook_api_key>`
 - [ ] Labels `repo-vend-proposed` / `repo-vended` available
 

@@ -69,8 +69,8 @@ Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propos
 
 ## Eval policy
 
-1. **Orchestrator** (`composer-2.5`) extracts intent — prompt: `evals/extract-intent.json`.
-2. **Judge** (`composer-2`) validates naming/template — prompt: `evals/judge-naming.json` (includes this file).
+1. **Orchestrator** (`composer-2.5` by default in `repo-vend.yaml`) extracts intent — prompt: `evals/extract-intent.json`.
+2. **Judge** (`claude-sonnet-5` by default) validates naming/template — prompt: `evals/judge-naming.json` (includes this file). Orchestrator and judge must be different model IDs.
 3. **Deterministic gate** must also pass (kebab + pattern + template map). LLM pass alone is not enough.
 4. Do not invent missing terraform shape/platform; use **generic** when the request is not clearly terraform or python.
 5. Both LLM judge and deterministic gate must pass before opening a Spec PR / commenting a green proposal.
