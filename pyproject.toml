@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repo-vendor"
+version = "0.1.0"
+description = "Agentic repo vending workflow: Jira → evals → GitHub create-from-template"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.10",
+  "pydantic-ai>=0.0.50",
+  "pydantic-settings>=2.6",
+  "httpx>=0.27",
+  "typer>=0.15",
+  "rich>=13.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.8",
+]
+cursor = [
+  "cursor-sdk>=0.1.0",
+]
+
+[project.scripts]
+repo-vendor = "repo_vendor.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repo_vendor"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/repo_vendor" = "repo_vendor"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
