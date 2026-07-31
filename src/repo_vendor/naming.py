@@ -45,6 +45,48 @@ def is_kebab(value: str) -> bool:
     return bool(_KEBAB.fullmatch(value))
 
 
+def reconcile_intent_from_proposed_name(intent: ExtractedIntent) -> ExtractedIntent:
+    """Align structured fields with a canonical proposed_name when present."""
+    name = intent.proposed_name
+    if not name:
+        return intent
+    name = to_kebab(name)
+    intent.proposed_name = name
+
+    m = TF_MODULE.fullmatch(name)
+    if m:
+        intent.project_type = ProjectType.TERRAFORM
+        intent.terraform_shape = TerraformShape.MODULE
+        if intent.platform is None:
+            intent.platform = Platform(m.group("platform"))
+        if not intent.purpose:
+            intent.purpose = m.group("name")
+        return intent
+
+    m = TF_ROOT.fullmatch(name)
+    if m:
+        intent.project_type = ProjectType.TERRAFORM
+        intent.terraform_shape = TerraformShape.ROOT
+        if not intent.purpose:
+            intent.purpose = m.group("name")
+        return intent
+
+    m = PYTHON_NAME.fullmatch(name)
+    if m:
+        intent.project_type = ProjectType.PYTHON
+        if not intent.purpose:
+            intent.purpose = m.group("purpose")
+        return intent
+
+    if GENERIC_NAME.fullmatch(name):
+        if intent.project_type is None:
+            intent.project_type = ProjectType.GENERIC
+        if not intent.purpose:
+            intent.purpose = name
+
+    return intent
+
+
 def build_proposed_name(intent: ExtractedIntent) -> str | None:
     """Build canonical name from structured intent when possible."""
     if intent.proposed_name:
@@ -257,12 +299,15 @@ def infer_intent_from_labels_and_text(
     else:
         purpose_raw = re.sub(
             r"\b(terraform|module|python|generic|repo|repository|new|for|my|on|aws|gcp|azure|"
-            r"need|please|create|a|an|the|reusable|project|root)\b",
+            r"need|please|create|a|an|the|reusable|project|root|i|want)\b",
             " ",
             summary,
             flags=re.I,
         )
         purpose = to_kebab(purpose_raw) or None
+
+    if project_type is None and shape is not None:
+        project_type = ProjectType.TERRAFORM
 
     missing: list[str] = []
     # Leave project_type None so validate can apply default_project_type from config

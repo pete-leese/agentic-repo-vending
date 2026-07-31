@@ -15,7 +15,11 @@ from repo_vendor.models import (
     SpecEvals,
     SpecRequest,
 )
-from repo_vendor.naming import to_kebab, validate_name_and_template
+from repo_vendor.naming import (
+    reconcile_intent_from_proposed_name,
+    to_kebab,
+    validate_name_and_template,
+)
 from repo_vendor.observability import record_eval, record_vend, span
 from repo_vendor.readme_gen import build_vended_readme
 from repo_vendor.spec import request_rel_path, spec_from_yaml, spec_to_yaml
@@ -242,6 +246,7 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
 
         if verdict.proposed_name and not intent.proposed_name:
             intent.proposed_name = to_kebab(verdict.proposed_name)
+        intent = reconcile_intent_from_proposed_name(intent)
 
         with span("eval_deterministic"):
             gate = validate_name_and_template(intent, settings)

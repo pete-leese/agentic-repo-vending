@@ -2,6 +2,7 @@ from repo_vendor.models import ExtractedIntent, Platform, ProjectType, Terraform
 from repo_vendor.naming import (
     build_proposed_name,
     infer_intent_from_labels_and_text,
+    reconcile_intent_from_proposed_name,
     to_kebab,
     validate_name_and_template,
 )
@@ -120,4 +121,27 @@ def test_heuristic_aks_implies_azure():
         labels=["tf-module"],
     )
     assert intent.platform == Platform.AZURE
+    assert validate_name_and_template(intent).passed
+
+
+def test_heuristic_ec2_module_without_terraform_word():
+    intent = infer_intent_from_labels_and_text(
+        summary="I need a EC2 module repo for aws",
+        description="",
+        labels=[],
+    )
+    assert intent.project_type == ProjectType.TERRAFORM
+    assert intent.terraform_shape == TerraformShape.MODULE
+    assert intent.platform == Platform.AWS
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "terraform-module-ec2-aws"
+
+
+def test_reconcile_intent_from_judge_proposed_name():
+    intent = ExtractedIntent(proposed_name="terraform-module-ec2-aws")
+    intent = reconcile_intent_from_proposed_name(intent)
+    assert intent.project_type == ProjectType.TERRAFORM
+    assert intent.terraform_shape == TerraformShape.MODULE
+    assert intent.platform == Platform.AWS
     assert validate_name_and_template(intent).passed
