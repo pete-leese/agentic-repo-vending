@@ -47,13 +47,17 @@ Use this script to show the MVP end-to-end.
 4. Trigger rename automation (or run locally):
 
 ```bash
+cat > /tmp/issue.json <<'EOF'
+{"key":"KAN-XX","summary":"python invoice parser","description":"Create a python invoice parser service","status":"In Review","labels":["repo-vended","type-python"]}
+EOF
 python -m repo_vendor rename \
-  --issue KAN-XX \
+  --issue-file /tmp/issue.json \
   --current-name python-invoice-parser \
-  --comment "Please rename to python-invoice-parser-cli"
+  --comment "Please rename to python-invoice-parser-cli" \
+  --json
 ```
 
-5. Expect re-eval + rename + updated comment
+5. Expect re-eval + rename; Automation applies `result.jira` via Atlassian tools
 
 ## Path D — Idempotency
 
@@ -64,8 +68,10 @@ Re-fire vend on an already `repo-vended` ticket → agent skips create and repor
 ```bash
 export ALLOW_LLM_FALLBACK=true
 export DRY_RUN=true
-# Still needs Jira credentials to fetch the issue unless you mock
-python -m repo_vendor vend --issue KAN-XX --dry-run
+cat > /tmp/issue.json <<'EOF'
+{"key":"KAN-XX","summary":"python logging helper","description":"A small python utility","status":"In Review","labels":["repo-vend-approved","type-python"]}
+EOF
+python -m repo_vendor vend --issue-file /tmp/issue.json --json --dry-run
 ```
 
-Without `CURSOR_API_KEY`, heuristic extract + deterministic gate still run (`ALLOW_LLM_FALLBACK=true`).
+No Jira credentials needed locally — pass a snapshot. Without `CURSOR_API_KEY`, heuristic extract + deterministic gate still run (`ALLOW_LLM_FALLBACK=true`).

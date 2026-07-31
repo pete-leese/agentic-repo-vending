@@ -54,3 +54,6 @@ Result labels applied at the end of a vend run:
 
 ### Vend Status Flow
 While vending: ticket moves to **In Progress**. On full or partial success: **Done**. On error: back to **In Review** for retry.
+
+### Jira Board I/O
+All reads and writes to the Jira board (issue fetch, transitions, labels, comments) are performed by the Cursor Automation using **Atlassian tools**. The vend CLI returns a **Jira update plan** (JSON) for the Automation to apply; it does not call Jira itself.

@@ -20,13 +20,12 @@ class Settings(BaseSettings):
     template_terraform: str = Field(default="template-terraform-repo", alias="TEMPLATE_TERRAFORM")
     template_python: str = Field(default="template-python-repo", alias="TEMPLATE_PYTHON")
 
-    # Jira
+    # Jira label/status *names* for the JSON plan applied by Atlassian Automation tools
+    # (CLI does not call Jira; no email/API token required)
     jira_base_url: str = Field(
         default="https://agentic-workflow-demo.atlassian.net",
         alias="JIRA_BASE_URL",
     )
-    jira_email: str = Field(default="", alias="JIRA_EMAIL")
-    jira_api_token: str = Field(default="", alias="JIRA_API_TOKEN")
     jira_approved_label: str = Field(default="repo-vend-approved", alias="JIRA_APPROVED_LABEL")
     jira_vended_label: str = Field(default="repo-vended", alias="JIRA_VENDED_LABEL")
     jira_in_review_status: str = Field(default="In Review", alias="JIRA_IN_REVIEW_STATUS")
