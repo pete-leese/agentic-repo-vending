@@ -9,9 +9,10 @@ Laptop-free workflow that vends public GitHub repositories from Jira tickets usi
 
 1. Human creates a ticket in **New Request**
 2. Jira Automation POSTs `action: propose` → agent runs evals → comments proposal + opens `requests/<KEY>.yaml` PR
-3. Human replies **`lgtm`** / **`approved`** / … (Keyword Approval)
-4. Jira POSTs `action: vend` → agent merges Spec PR → create-from-template → protect `main`
-5. No post-create rename
+3. Optional: edit summary/description or add helper labels → re-propose with more context
+4. Human replies **`lgtm`** / **`approved`** / … (Keyword Approval)
+5. Jira POSTs `action: vend` → agent merges Spec PR → create-from-template → protect `main`
+6. No post-create rename
 
 Setup: [Getting started](docs/getting-started.md) · [Jira + webhook](docs/jira-setup.md) · [Cursor Automation](docs/automation-setup.md) · [Rules](rules/naming.md) · [Config](repo-vend.yaml)
 
@@ -34,7 +35,7 @@ python3 scripts/generate_jira_automation_import.py \
 3. Import `docs/jira/automation-rules-import.json` via **Space Settings → Automation → Global automation**  
    (or `{jira.base_url}/jira/settings/automation` from [`repo-vend.yaml`](repo-vend.yaml)).
 4. On **each** rule’s **Send web request** POST, set `Authorization: Bearer <webhook_api_key>`.
-5. Enable both rules; disable any old one-shot vend rule.
+5. Enable all four rules; disable any old one-shot vend rule.
 
 Full walkthrough: [docs/getting-started.md](docs/getting-started.md).
 
@@ -67,8 +68,8 @@ sequenceDiagram
 | Role | Model ID | Notes |
 |------|----------|--------|
 | Cloud Automation (agent runtime) | `composer-2.5` | Prefill / Automations UI |
-| Propose extract (orchestrator) | `composer-2.5` | Cursor Models pool |
-| Eval judge | `claude-sonnet-5` | Other Models pool; must ≠ orchestrator |
+| Propose extract (orchestrator) | `claude-sonnet-5` | Other Models pool |
+| Eval judge | `composer-2.5` | Cursor Models pool; must ≠ orchestrator |
 | Naming gate | deterministic |
 
 ## Quick links

@@ -1,14 +1,16 @@
 # Connecting your Jira to repo vending
 
-**Primary path:** two Jira Automation rules → Cursor webhook → **Atlassian tools** for board I/O → `repo_vendor propose` / `vend`.
+**Primary path:** Jira Automation rules → Cursor webhook → **Atlassian tools** for board I/O → `repo_vendor propose` / `vend`.
 
-**Atlassian MCP/tools are not a wake trigger** — they are how the running Automation reads/writes the KAN board. The CLI never calls Jira REST.
+**Atlassian MCP/tools are not a wake trigger** — they are how the running Automation reads/writes the REPO board. The CLI never calls Jira REST.
 
 ```mermaid
 flowchart LR
   Human --> Jira
   Jira -->|create New_Request| RulePropose
+  Jira -->|edit summary_desc or helper_label| RuleRepropose
   RulePropose -->|webhook propose| CursorWH[Cursor_Webhook]
+  RuleRepropose -->|webhook propose| CursorWH
   CursorWH --> Agent[Cloud_Agent]
   Agent --> CLIPropose[repo_vendor_propose]
   CLIPropose --> SpecPR[requests_YAML_PR]
@@ -32,13 +34,13 @@ Board statuses:
 
 | Phase | Status |
 |-------|--------|
-| Create / propose | **New Request** |
+| Create / propose / re-propose | **New Request** |
 | While creating repo | **In Progress** |
 | Success / warning | **Done** |
 
 ## Rule 1 — Propose (issue created)
 
-1. Trigger: **Issue created** (project KAN); condition status = **New Request** if available
+1. Trigger: **Issue created** (project REPO); condition status = **New Request** if available
 2. Action: **Send web request** POST to Cursor webhook
 
 Headers:
@@ -57,7 +59,23 @@ Body:
 }
 ```
 
-## Rule 2 — Vend (Keyword Approval)
+## Rule 2 — Re-propose on edit (more context)
+
+1. Trigger: **Field value changed** for **Summary** and **Description**
+2. Conditions: status = **New Request**; labels does **not** contain `repo-vended`
+3. Action: same propose webhook body as Rule 1
+
+## Rule 3 — Re-propose on helper label
+
+1. Trigger: **Field value changed** for **Labels** (value added)
+2. Conditions:
+   - status = **New Request**
+   - labels does **not** contain `repo-vended`
+   - `{{fieldChange.toString}}` matches helper labels: `platform-aws|gcp|azure`, `tf-module|tf-root`, `type-terraform|python|generic`  
+     (does **not** match `repo-vend-*` outcome labels — avoids loops when the agent adds `repo-vend-proposed` / `repo-vend-error`)
+3. Action: same propose webhook body
+
+## Rule 4 — Vend (Keyword Approval)
 
 1. Trigger: **Issue commented**
 2. Conditions:
@@ -80,10 +98,13 @@ Comment **likes/reactions are not supported** as triggers.
 
 1. Create ticket in **New Request** (free text and/or helper labels)
 2. Agent comments with proposal (name, template, eval pass/fail) + Spec PR link
-3. Reply `lgtm` (or another approval keyword)
-4. Agent merges Spec PR, creates public GitHub repo, comments URL
+3. If more context is needed: edit summary/description **or** add `tf-module` / `platform-aws` / … → propose runs again
+4. Reply `lgtm` (or another approval keyword)
+5. Agent merges Spec PR, creates public GitHub repo, comments URL
 
 Wrong name: edit description/labels and re-trigger propose **before** approving. No post-create rename.
+
+Platform tip: cloud-specific services imply platform (EKS→aws, GKE→gcp, AKS→azure) — see [`rules/naming.md`](../rules/naming.md).
 
 ## Importable Automation rules (JSON)
 
@@ -100,9 +121,9 @@ Static starter (may need webhook URL edit): [`docs/jira/automation-rules-two-pha
 1. Open **Space Settings → Automation → Global automation**, or `{jira.base_url}/jira/settings/automation` from `repo-vend.yaml`
 2. **⋯ → Import rules**, upload the generated JSON  
 3. For **each** rule’s **Send web request** POST action, set `Authorization: Bearer <Cursor_webhook_API_key>` (replace the placeholder)  
-4. Disable/delete the old one-shot vend rule; **Enable** the two new rules  
+4. Disable/delete the old one-shot vend rule; **Enable** all four new rules  
 
-Note: `idUuid` / component `id` values must be valid 36-char UUIDs. Label exclusion uses **`CONTAINS_NONE`**. See `.cursor/rules/jira-automation-export.mdc`.
+Note: `idUuid` / component `id` values must be valid 36-char UUIDs. Label exclusion uses **`CONTAINS_NONE`**. Field-changed triggers use type `jira.issue.field.changed`. See `.cursor/rules/jira-automation-export.mdc`.
 
 Example rule export shape (sanitized):
 

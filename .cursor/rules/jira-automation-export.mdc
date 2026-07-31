@@ -29,17 +29,18 @@ Canonical working example: [`docs/jira/automation-rules-two-phase.json`](../../d
 
 ## Project conventions for this repo
 
-- Two-phase flow: `action: propose` on issue **created** (status New Request); `action: vend` on **commented** with Keyword Approval. See `docs/jira-setup.md` and `repo-vend.yaml` for keywords.
+- Two-phase flow (+ re-propose): `action: propose` on issue **created**, on **summary/description** edit, and on helper **label** add (`platform-|tf-|type-*`); `action: vend` on **commented** with Keyword Approval. See `docs/jira-setup.md` and `repo-vend.yaml`.
 - Webhook URL: Cursor Automation webhook; `Authorization: Bearer <webhook_api_key>` (not global `CURSOR_API_KEY`).
 - Keep `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY` (or empty secure header) obvious so humans fill the real key after import.
 - Imported rules arrive **DISABLED** — document enable + disable of superseded rules.
-- After changing approval keywords in `repo-vend.yaml`, update the approve rule’s comment regex / comparator to match.
+- After changing approval keywords in `repo-vend.yaml`, update the approve rule’s comment regex / comparator to match (generator only patches `{{comment.body}}` REGEX conditions).
 
 ## Checklist before telling the user a JSON is importable
 
 - [ ] `idUuid` values parse as UUIDs  
 - [ ] Every `comparison` value is in Jira’s enum (especially label conditions → `CONTAINS_ANY` / `CONTAINS_NONE`)  
-- [ ] Trigger `type` strings match known Automation types (`jira.issue.event.trigger:created`, `:commented`, `:transitioned`, …)  
+- [ ] Trigger `type` strings match known Automation types (`jira.issue.event.trigger:created`, `:commented`, `jira.issue.field.changed`, …)  
 - [ ] `ruleScope` / project ARIs match this site (copy from a prior export)  
-- [ ] Custom webhook body is valid JSON with `{{issue.key}}` / `{{comment.body}}` smart values as needed  
-- [ ] No secrets committed (Bearer token placeholder only)
+- [ ] Custom webhook body is valid JSON with `{{issue.key}}` / `{{comment.body}}` / `{{fieldChange.toString}}` smart values as needed  
+- [ ] No secrets committed (Bearer token placeholder only)  
+- [ ] Label re-propose regex does **not** match `repo-vend-*` outcome labels (avoids loops)

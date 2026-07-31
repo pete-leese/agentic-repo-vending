@@ -5,8 +5,9 @@ Single source of truth for humans and the Cursor Automation. Board URLs, approva
 ## Two-phase HITL
 
 1. **Propose** — Issue **created** in **New Request** → agent runs evals → Jira proposal comment. On pass, opens PR `requests/<ISSUE-KEY>.yaml`.
-2. **Approve** — Human replies with a Keyword Approval phrase (from `repo-vend.yaml` → `jira.approval.keywords`) → agent merges Spec PR → create-from-template.
-3. **No rename after create** — Wrong name: edit the ticket and re-propose before approve, or open a new request.
+2. **Re-propose (more context)** — While still **New Request** and **not** `repo-vended`, editing **summary/description** or adding a helper label (`platform-*` / `tf-*` / `type-*`) re-triggers `action: propose`. Outcome labels (`repo-vend-*`) do **not** re-trigger.
+3. **Approve** — Human replies with a Keyword Approval phrase (from `repo-vend.yaml` → `jira.approval.keywords`) → agent merges Spec PR → create-from-template.
+4. **No rename after create** — Wrong name: edit the ticket and re-propose before approve, or open a new request.
 
 ### Keyword Approval (defaults)
 
@@ -26,7 +27,7 @@ Comment likes/reactions are **not** used. Keep the Jira Automation comment condi
 | **`repo-vend-warning`** | Repo created but a non-fatal step failed (e.g. branch protection / README rewrite) |
 | **`repo-vend-error`** | Propose or vend did not complete |
 
-Status flow: **New Request** (create) → propose → **In Progress** while vending → **Done** on success/warning.
+Status flow: **New Request** (create / re-propose) → propose → **In Progress** while vending → **Done** on success/warning.
 
 ## Helper labels (optional)
 
@@ -34,7 +35,7 @@ Status flow: **New Request** (create) → propose → **In Progress** while vend
 |-------|---------|
 | `type-terraform` / `type-python` / `type-generic` | Project type |
 | `tf-module` / `tf-root` | Terraform shape |
-| `platform-aws` / `platform-gcp` / `platform-azure` | Cloud platform (required for modules) |
+| `platform-aws` / `platform-gcp` / `platform-azure` | Cloud platform (modules); often optional when the service implies a cloud |
 
 ## Naming (always kebab-case)
 
@@ -48,6 +49,18 @@ Snake_case, spaces, and CamelCase are normalized to kebab-case before checks.
 | Generic | plain kebab (no `terraform-` / `python-` prefix) | `billing-gateway` |
 
 Platforms: `aws` | `gcp` | `azure`.
+
+### Platform from service name
+
+When `platform-*` / `aws|gcp|azure` is absent, derive platform from cloud-specific services (see `src/repo_vendor/platform_aliases.py`):
+
+| Service (examples) | Platform |
+|--------------------|----------|
+| EKS, ECS, EC2, S3, RDS, Lambda, DynamoDB, SQS, SNS, CloudFront, Route53 | `aws` |
+| GKE, GCS, BigQuery, Cloud Run, GCE, Pub/Sub | `gcp` |
+| AKS, Azure AD, Cosmos DB | `azure` |
+
+Example: summary `terraform module for EKS` + label `tf-module` → platform `aws` → `terraform-module-eks-…-aws` (no `platform-aws` label required).
 
 If type is unclear, `github.default_project_type` in `repo-vend.yaml` applies (default **generic**).
 
@@ -65,12 +78,12 @@ After create-from-template, the vendor **rewrites `README.md`** on the new repo 
 
 ## Spec Request (SDD)
 
-Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propose; **vend reads this file**, not a fresh ticket extract.
+Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propose; **vend reads this file**, not a fresh ticket extract. Re-propose updates the Spec PR from the latest ticket.
 
 ## Eval policy
 
-1. **Orchestrator** (`composer-2.5` by default in `repo-vend.yaml`) extracts intent — prompt: `evals/extract-intent.json`.
-2. **Judge** (`claude-sonnet-5` by default) validates naming/template — prompt: `evals/judge-naming.json` (includes this file). Orchestrator and judge must be different model IDs.
+1. **Orchestrator** (`claude-sonnet-5` by default in `repo-vend.yaml`) extracts intent — prompt: `evals/extract-intent.json`.
+2. **Judge** (`composer-2.5` by default) validates naming/template — prompt: `evals/judge-naming.json` (includes this file). Orchestrator and judge must be different model IDs.
 3. **Deterministic gate** must also pass (kebab + pattern + template map). LLM pass alone is not enough.
-4. Do not invent missing terraform shape/platform; use **generic** when the request is not clearly terraform or python.
+4. Do not invent missing terraform shape; derive platform via labels, explicit cloud words, or service aliases above. Use **generic** when the request is not clearly terraform or python.
 5. Both LLM judge and deterministic gate must pass before opening a Spec PR / commenting a green proposal.

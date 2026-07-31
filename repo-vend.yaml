@@ -37,8 +37,8 @@ github:
 
 models:
   # Dual-model policy: orchestrator ≠ eval (see docs/adr/0002).
-  # composer-2.5 → Cursor Models pool (cheap extract).
-  # claude-sonnet-5 → Other Models pool (stronger independent naming judge).
+  # claude-sonnet-5 → propose/extract (stronger ticket understanding; Other Models pool).
+  # composer-2.5 → eval judge (Cursor Models pool; independent of orchestrator).
   # Override locally: ORCHESTRATOR_MODEL / EVAL_MODEL. List IDs: Cursor.models.list().
-  orchestrator: composer-2.5
-  eval: claude-sonnet-5
+  orchestrator: claude-sonnet-5
+  eval: composer-2.5

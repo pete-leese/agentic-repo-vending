@@ -10,14 +10,15 @@ Naming and template selection must be enforced reliably. A single model both pro
 
 ## Decision
 
-- Orchestrator LLM: Cursor model `composer-2.5` (intent extraction; Cursor Models pool).
-- Eval judge LLM: Anthropic `claude-sonnet-5` via Cursor (must differ from orchestrator; Other Models pool).
-- Earlier MVP used `composer-2` as judge; Sonnet 5 is preferred for stricter naming/template judgment at Sonnet pricing (promo through Aug 2026).
+- Orchestrator LLM: Anthropic `claude-sonnet-5` via Cursor (intent extraction; Other Models pool).
+- Eval judge LLM: Cursor model `composer-2.5` (must differ from orchestrator; Cursor Models pool).
+- Earlier iterations used `composer-2.5`/`composer-2` then swapped Sonnet onto the judge; current preference is Sonnet on **propose/extract** and Composer on **eval**.
 - Deterministic kebab/pattern/template rules always run; hard-fail overrides any LLM pass.
+- Platform may be derived from cloud-specific services (EKS→aws, GKE→gcp, AKS→azure) in addition to labels.
 - Access Cursor models via Cursor SDK from the PydanticAI app; Cloud Automation runtime stays on `composer-2.5` (tooling + CLI orchestration, separate from eval IDs).
 
 ## Consequences
 
-- One `CURSOR_API_KEY` covers LLM calls for MVP; judge usage draws from the Other Models pool.
+- One `CURSOR_API_KEY` covers LLM calls for MVP; orchestrator usage draws from the Other Models pool.
 - Model IDs are centralized in `repo-vend.yaml` and overridable by `ORCHESTRATOR_MODEL` / `EVAL_MODEL`.
 - Post-MVP harnesses can replace the Cursor SDK adapter without changing domain rules.

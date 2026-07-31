@@ -69,7 +69,7 @@ python3 scripts/generate_jira_automation_import.py --webhook-url '<PASTED_URL>'
    - Generated path (`out`, usually `docs/jira/automation-rules-import.json`)
    - Import: **Space Settings → Automation → Global automation**, or `{jira.base_url}/jira/settings/automation` from `repo-vend.yaml`
    - For **each** Send web request POST: `Authorization: Bearer <webhook_api_key>` (placeholder in JSON is `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY`)
-   - Enable both rules; disable any old one-shot vend rule
+   - Enable all four rules; disable any old one-shot vend rule
 
 10. If they paste only the API key (no URL), ask again for the webhook URL. If they already have an Automation and only need JSON, they may paste the URL immediately — skip Phase A open if they say so, and jump to Phase B.
 

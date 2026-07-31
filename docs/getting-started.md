@@ -23,7 +23,7 @@ Edit [`repo-vend.yaml`](../repo-vend.yaml) for board URL, approval keywords, and
 
 | Secret | Purpose |
 |--------|---------|
-| `CURSOR_API_KEY` | Cursor SDK (`composer-2.5` extract + `claude-sonnet-5` judge; see `repo-vend.yaml`) |
+| `CURSOR_API_KEY` | Cursor SDK (`claude-sonnet-5` extract + `composer-2.5` judge; see `repo-vend.yaml`) |
 | `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
 
 Jira board I/O: **Atlassian** tool on the Cursor Automation (not Jira API tokens in the CLI).
@@ -65,7 +65,7 @@ You still must **Save** in the UI — Cursor does not return webhook URL/API key
 
 ## 6. Generate + import Jira Automation rules
 
-Two rules: **propose** on issue create (New Request), **vend** on Keyword Approval comment.
+Two rules for propose on create, plus re-propose on edit/label, plus Keyword Approval vend.
 
 If you used **setup-repo-vend-automation**, Phase B already generates the import file. Otherwise:
 
@@ -94,7 +94,7 @@ Authorization: Bearer <webhook_api_key_from_this_Cursor_Automation>
 ```
 
    Replace the placeholder `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY` if present.
-5. **Enable** both rules; disable/delete any old one-shot vend rule.
+5. **Enable** all four rules; disable/delete any old one-shot vend rule.
 
 Full detail: [jira-setup.md](jira-setup.md). Export pitfalls: `.cursor/rules/jira-automation-export.mdc`.
 
