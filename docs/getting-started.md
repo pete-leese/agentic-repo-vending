@@ -54,12 +54,9 @@ Create labels (or let Jira create on first use):
 - `repo-vended` (idempotency after success)
 - Optional helpers: `type-terraform`, `type-python`, `tf-module`, `tf-root`, `platform-aws`, `platform-gcp`, `platform-azure`
 
-## 5. Wire how Cursor wakes up (pick one)
+## 5. Wire Jira → Cursor webhook
 
-See **[jira-setup.md](jira-setup.md)**. Recommended default:
-
-- Cursor Automation on a **schedule** → `python -m repo_vendor scan`  
-- No Jira Automation / webhook required
+Follow **[jira-setup.md](jira-setup.md)** (Cursor webhook Automation + Jira Send web request with `Authorization: Bearer <webhook_api_key>`).
 
 ## 6. First ticket
 
@@ -67,7 +64,7 @@ See **[jira-setup.md](jira-setup.md)**. Recommended default:
    `I need a new repo for a terraform module for S3 bucket for my aws platform`
 2. Move to **In Review**
 3. Add `repo-vend-approved`
-4. Wait for the next scan (or webhook) → agent comment + new public GitHub repo
+4. Watch for the agent comment + new public GitHub repo
 
 ## Naming cheat sheet
 

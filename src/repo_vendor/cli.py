@@ -8,7 +8,7 @@ import typer
 from rich.console import Console
 
 from repo_vendor.config import Settings, get_settings
-from repo_vendor.workflow import rename_from_issue, scan_and_vend, vend_issue
+from repo_vendor.workflow import rename_from_issue, vend_issue
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 console = Console()
@@ -64,27 +64,6 @@ def rename_cmd(
         raise typer.Exit(0)
     console.print(f"[red]FAILED[/red] {result.message}")
     raise typer.Exit(1)
-
-
-@app.command()
-def scan(
-    max_issues: int = typer.Option(10, "--max", help="Max approved tickets to process"),
-    dry_run: bool = typer.Option(False, "--dry-run"),
-) -> None:
-    """Poll Jira for In Review + approved tickets and vend each (no Jira webhook needed)."""
-    settings = _with_dry_run(dry_run)
-    console.print(f"[bold]Scan[/bold] max={max_issues} dry_run={settings.dry_run}")
-    results = scan_and_vend(settings, max_issues=max_issues)
-    if not results:
-        console.print("No pending approved tickets.")
-        raise typer.Exit(0)
-    failures = 0
-    for result in results:
-        colour = "green" if result.success else "red"
-        console.print(f"[{colour}]{result.issue_key}[/{colour}] {result.message}")
-        if not result.success:
-            failures += 1
-    raise typer.Exit(1 if failures else 0)
 
 
 @app.command()

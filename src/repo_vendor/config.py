@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     jira_approved_label: str = Field(default="repo-vend-approved", alias="JIRA_APPROVED_LABEL")
     jira_vended_label: str = Field(default="repo-vended", alias="JIRA_VENDED_LABEL")
     jira_in_review_status: str = Field(default="In Review", alias="JIRA_IN_REVIEW_STATUS")
-    jira_project_key: str = Field(default="KAN", alias="JIRA_PROJECT_KEY")
 
     # Cursor models (explicit MVP IDs)
     cursor_api_key: str = Field(default="", alias="CURSOR_API_KEY")
