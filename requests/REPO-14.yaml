@@ -1,0 +1,28 @@
+issue_key: REPO-14
+summary: 'I need a repo for a s3 bucket terraform module '
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: s3-bucket
+  proposed_name: terraform-module-s3-bucket-aws
+  confidence: 0.0
+  missing_info: []
+  notes: llm_extract
+proposed_name: terraform-module-s3-bucket-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Intent is terraform with shape module and platform aws (S3 service alias and explicit
+    platform).
+  - Purpose s3-bucket maps to terraform-module naming pattern terraform-module-<purpose>-<platform>.
+  - Proposed name terraform-module-s3-bucket-aws is valid kebab-case and matches terraform-module-s3-bucket-aws.
+  - Terraform project type maps to template-terraform-repo per repo-vend rules.
+  - No missing shape, platform, or purpose; platform-aws label not required when intent.platform
+    is set.
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/11
