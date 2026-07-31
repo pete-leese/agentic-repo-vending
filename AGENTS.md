@@ -13,10 +13,13 @@ Idempotent install; secrets come from the Cloud Agent dashboard.
 ## Running the vend CLI
 
 ```bash
+python -m repo_vendor scan
 python -m repo_vendor vend --issue KAN-123
 python -m repo_vendor rename --issue KAN-123 --current-name old-name --comment "Please rename to python-new-name"
 python -m repo_vendor doctor
 ```
+
+Prefer **scan** from a scheduled Cloud Automation when you want zero Jira webhook setup.
 
 ## Models
 

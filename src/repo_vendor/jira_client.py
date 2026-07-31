@@ -88,6 +88,36 @@ class JiraClient:
     def is_vended(self, issue: JiraIssue) -> bool:
         return self.settings.jira_vended_label in issue.labels
 
+    def search_approved_pending(self, *, max_results: int = 25) -> list[JiraIssue]:
+        """Find HITL-approved tickets that have not been vended yet (cron / scan path)."""
+        status = self.settings.jira_in_review_status.replace('"', '\\"')
+        approved = self.settings.jira_approved_label.replace('"', '\\"')
+        vended = self.settings.jira_vended_label.replace('"', '\\"')
+        project = self.settings.jira_project_key.replace('"', '\\"')
+        jql = (
+            f'project = "{project}" AND status = "{status}" '
+            f'AND labels = "{approved}" AND labels != "{vended}" '
+            f"ORDER BY updated ASC"
+        )
+        r = self._client.get(
+            "/rest/api/3/search",
+            params={"jql": jql, "maxResults": max_results, "fields": "summary,description,status,labels"},
+        )
+        r.raise_for_status()
+        issues: list[JiraIssue] = []
+        for data in r.json().get("issues") or []:
+            fields = data["fields"]
+            issues.append(
+                JiraIssue(
+                    key=data["key"],
+                    summary=fields.get("summary") or "",
+                    description=_adf_to_text(fields.get("description")),
+                    status=(fields.get("status") or {}).get("name") or "",
+                    labels=list(fields.get("labels") or []),
+                )
+            )
+        return issues
+
 
 def _adf_to_text(description: object) -> str:
     if description is None:

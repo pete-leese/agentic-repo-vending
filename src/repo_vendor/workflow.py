@@ -72,6 +72,21 @@ def _success_comment(
     )
 
 
+def scan_and_vend(settings: Settings | None = None, *, max_issues: int = 10) -> list[VendResult]:
+    """Poll Jira for approved, not-yet-vended issues and vend each (cron-friendly)."""
+    settings = settings or get_settings()
+    results: list[VendResult] = []
+    with span("scan", max_issues=max_issues):
+        with JiraClient(settings) as jira:
+            pending = jira.search_approved_pending(max_results=max_issues)
+        if not pending:
+            logger.info("scan: no approved pending issues")
+            return results
+        for issue in pending:
+            results.append(vend_issue(issue.key, settings))
+    return results
+
+
 def vend_issue(issue_key: str, settings: Settings | None = None) -> VendResult:
     settings = settings or get_settings()
     with span("vend", issue_key=issue_key):
