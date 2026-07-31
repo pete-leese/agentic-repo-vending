@@ -1,82 +1,48 @@
-# Cursor Automation + Jira webhook setup
+# Cursor Automation setup
 
-## Why webhook
+Primary wake path: **Jira webhook** → this Automation → `repo_vendor vend`.  
+Full Jira steps: [jira-setup.md](jira-setup.md).
 
-Cursor Automations have no native Jira trigger. Jira Automation → HTTP webhook keeps the path fast (no laptop, no cron lag). See [ADR 0001](adr/0001-jira-webhook-to-cursor.md).
+## Webhook Automation
 
-## 1. Create Cursor Automation
-
-1. Open Cursor → Automations
-2. Trigger: **Webhook**
-3. Model: **`composer-2.5`**
-4. Repo: `pete-leese/agentic-repo-vending` (branch `main`)
-5. Instructions (paste):
+1. Cursor → Automations → New  
+2. Trigger: **Webhook**  
+3. Repo: `pete-leese/agentic-repo-vending` @ `main`  
+4. Model: `composer-2.5`  
+5. Instructions:
 
 ```text
-You are the repo-vend cloud runner for this repository.
+You are the repo-vend cloud runner for pete-leese/agentic-repo-vending.
 
-1. Parse the webhook JSON for a Jira issue key (fields like issue.key, key, or issueKey).
-2. Ensure dependencies are installed (environment.json should already have run install).
-3. Run:
+1. Parse the webhook JSON for a Jira issue key (issue.key, key, or issueKey).
+2. Dependencies should already be installed via .cursor/environment.json.
+3. If action is missing or "vend", run:
    python -m repo_vendor vend --issue <KEY>
-4. If the payload indicates a rename (action=rename) with currentName and comment, run:
-   python -m repo_vendor rename --issue <KEY> --current-name <NAME> --comment "<TEXT>"
-5. Paste the CLI stdout/stderr into your final reply.
-6. Never print secret values.
+4. If action is "rename", run:
+   python -m repo_vendor rename --issue <KEY> --current-name <currentName> --comment "<comment>"
+   If currentName is empty, infer it from recent Jira comments on the issue.
+5. Reply with the CLI stdout/stderr. Never print secret values.
 ```
 
-6. Save and copy the **webhook URL** + auth secret if prompted
+6. Save → copy **webhook URL** + **webhook API key** (scoped to this automation)  
+7. Paste into Jira **Send web request** as:
 
-## 2. Jira Automation (vend)
-
-Project: KAN
-
-**Trigger:** Issue transitioned to **In Review**  
-**Condition:** Labels contain `repo-vend-approved`  
-(Alternatively: label added + status equals In Review)
-
-**Action:** Send web request
-
-- Method: POST
-- URL: *(Cursor webhook URL)*
-- Headers: as required by Cursor webhook auth
-- Body example:
-
-```json
-{
-  "action": "vend",
-  "issue": {
-    "key": "{{issue.key}}"
-  }
-}
+```text
+Authorization: Bearer <webhook_api_key>
+Content-Type: application/json
 ```
 
-## 3. Jira Automation (rename) — optional
+Do **not** use the global Cloud Agent / Integrations `CURSOR_API_KEY` for the webhook — it lacks `automation:<id>` scope.
 
-**Trigger:** Comment added  
-**Condition:** Labels contain `repo-vended`  
-**Action:** Webhook POST
+## Cloud Agent secrets
 
-```json
-{
-  "action": "rename",
-  "issue": { "key": "{{issue.key}}" },
-  "comment": "{{comment.body}}",
-  "currentName": ""
-}
-```
-
-If `currentName` is empty, have the Cloud Agent read the last vend comment for the repo URL/name, or store the name in a Jira custom field later (post-MVP).
-
-For MVP demos you can also run rename via CLI with an explicit `--current-name`.
-
-## 4. Cloud Agent secrets
-
-In [Cloud Agents dashboard](https://cursor.com/dashboard?tab=cloud-agents) for this repo:
+[Dashboard](https://cursor.com/dashboard?tab=cloud-agents) (for running `repo_vendor`, separate from webhook auth):
 
 - `CURSOR_API_KEY`
 - `GITHUB_TOKEN`
 - `JIRA_EMAIL`
 - `JIRA_API_TOKEN`
 
-Confirm [`.cursor/environment.json`](../.cursor/environment.json) install succeeds on a test agent run.
+Optional: `JIRA_BASE_URL`, label/status overrides.
+
+Confirm [`.cursor/environment.json`](../.cursor/environment.json) install succeeds on a test run.

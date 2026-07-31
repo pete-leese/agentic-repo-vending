@@ -18,6 +18,8 @@ python -m repo_vendor rename --issue KAN-123 --current-name old-name --comment "
 python -m repo_vendor doctor
 ```
 
+Triggered in production by **Jira webhook → Cursor Automation** (see `docs/jira-setup.md`).
+
 ## Models
 
 - Orchestrator / automation: `composer-2.5`
@@ -29,3 +31,4 @@ python -m repo_vendor doctor
 - Commit `.env` or API keys
 - Vend when `repo-vended` is already present (CLI enforces idempotency)
 - Skip deterministic checks
+- Use the global `CURSOR_API_KEY` as the Jira webhook Bearer token (needs the automation-scoped webhook key)

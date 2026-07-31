@@ -54,9 +54,9 @@ Create labels (or let Jira create on first use):
 - `repo-vended` (idempotency after success)
 - Optional helpers: `type-terraform`, `type-python`, `tf-module`, `tf-root`, `platform-aws`, `platform-gcp`, `platform-azure`
 
-## 5. Wire automation
+## 5. Wire Jira → Cursor webhook
 
-Follow [automation-setup.md](automation-setup.md) for Cursor webhook + Jira Automation.
+Follow **[jira-setup.md](jira-setup.md)** (Cursor webhook Automation + Jira Send web request with `Authorization: Bearer <webhook_api_key>`).
 
 ## 6. First ticket
 

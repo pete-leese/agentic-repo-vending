@@ -17,6 +17,8 @@ Laptop-free workflow that vends public GitHub repositories from Jira tickets usi
 8. On failure: comment what is missing — no repo created
 9. Rename: comment a new name on a vended ticket → re-eval → rename
 
+Setup: [docs/jira-setup.md](docs/jira-setup.md) (MCP is not a trigger).
+
 ## Architecture
 
 ```mermaid
@@ -62,11 +64,18 @@ sequenceDiagram
 ## Quick links
 
 - [Getting started](docs/getting-started.md)
+- [Jira + webhook setup](docs/jira-setup.md)
 - [Demo walkthrough](docs/demo-walkthrough.md)
 - [Automation setup](docs/automation-setup.md)
 - [Post-MVP (OTEL / harnesses)](docs/post-mvp.md)
 - [Domain glossary](CONTEXT.md)
 - [ADRs](docs/adr/)
+
+## Triggering
+
+**Jira Automation → Cursor webhook** is the primary wake path.  
+**Atlassian MCP is not a trigger** — it only helps once an agent is already running.  
+See [docs/jira-setup.md](docs/jira-setup.md).
 
 ## Local development
 
