@@ -16,13 +16,13 @@ evals:
   llm_passed: true
   deterministic_passed: true
   reasons:
-  - Request is a Terraform module for an S3 bucket; infra phrasing with module + S3
-    maps to terraform/module, not generic.
-  - Platform aws is set in intent and implied by S3 (AWS service alias); platform-aws
-    label is not required.
-  - Proposed name terraform-module-s3-bucket-aws matches terraform-module-<purpose>-<platform>
-    with purpose s3-bucket.
+  - Intent is terraform with shape module and platform aws (S3 service alias and explicit
+    platform).
+  - Purpose s3-bucket maps to terraform-module naming pattern terraform-module-<purpose>-<platform>.
+  - Proposed name terraform-module-s3-bucket-aws is valid kebab-case and matches terraform-module-s3-bucket-aws.
   - Terraform project type maps to template-terraform-repo per repo-vend rules.
+  - No missing shape, platform, or purpose; platform-aws label not required when intent.platform
+    is set.
   missing_info: []
 status: proposed
-pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/11
+pr_url: null
