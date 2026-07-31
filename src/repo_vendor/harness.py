@@ -206,11 +206,54 @@ def _coerce_bool(value: Any) -> bool:
 def _coerce_confidence(value: Any) -> float:
     if value is None or value == "":
         return 0.0
+    if isinstance(value, str):
+        s = value.strip().lower()
+        labels = {"high": 0.85, "medium": 0.6, "med": 0.6, "low": 0.35, "certain": 0.95}
+        if s in labels:
+            return labels[s]
+        if s.endswith("%"):
+            try:
+                return max(0.0, min(1.0, float(s[:-1]) / 100.0))
+            except ValueError:
+                return 0.0
     try:
         conf = float(value)
     except (TypeError, ValueError):
         return 0.0
+    # Model sometimes returns 0-100 instead of 0-1
+    if conf > 1.0 and conf <= 100.0:
+        conf = conf / 100.0
     return max(0.0, min(1.0, conf))
+
+
+def derive_confidence(intent: ExtractedIntent, *, gate_passed: bool = False) -> float:
+    """Fill confidence when the LLM omitted it (common with agent JSON extracts)."""
+    if intent.confidence > 0.0:
+        return intent.confidence
+
+    score = 0.35
+    if intent.project_type is not None:
+        score += 0.15
+    if intent.purpose or intent.proposed_name:
+        score += 0.15
+    if intent.project_type == ProjectType.TERRAFORM:
+        if intent.terraform_shape is not None:
+            score += 0.1
+        if intent.terraform_shape == TerraformShape.MODULE:
+            if intent.platform is not None:
+                score += 0.15
+        elif intent.terraform_shape == TerraformShape.ROOT:
+            score += 0.1
+    elif intent.project_type == ProjectType.PYTHON:
+        score += 0.1
+    elif intent.project_type == ProjectType.GENERIC:
+        score += 0.05
+    if not intent.missing_info:
+        score += 0.1
+    if gate_passed:
+        score = max(score, 0.75)
+        score += 0.05
+    return max(0.0, min(1.0, round(score, 2)))
 
 
 def _enum_or_none(enum_cls: type, value: Any):

@@ -226,10 +226,12 @@ class GitHubClient:
             json={"title": title, "body": body, "head": head, "base": base_branch},
         )
         if r.status_code == 422:
-            # PR may already exist for this head
+            # PR may already exist for this head — refresh title/body on re-propose
             existing = self.find_open_pr(head_ref=head)
             if existing:
-                return existing
+                return self.update_pull_request(
+                    existing.number, title=title, body=body
+                )
         r.raise_for_status()
         data = r.json()
         return PullRequestInfo(
@@ -238,6 +240,45 @@ class GitHubClient:
             merged=bool(data.get("merged")),
             state=str(data.get("state") or "open"),
             head_ref=head,
+        )
+
+    def update_pull_request(
+        self,
+        number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+    ) -> PullRequestInfo:
+        if self.settings.dry_run:
+            return PullRequestInfo(
+                number=number,
+                html_url=f"https://github.com/{self._control}/pull/{number}",
+                merged=False,
+                state="open",
+                head_ref="",
+            )
+        payload: dict[str, str] = {}
+        if title is not None:
+            payload["title"] = title
+        if body is not None:
+            payload["body"] = body
+        if payload:
+            r = self._client.patch(
+                f"/repos/{self._control}/pulls/{number}",
+                json=payload,
+            )
+            r.raise_for_status()
+            data = r.json()
+        else:
+            get_r = self._client.get(f"/repos/{self._control}/pulls/{number}")
+            get_r.raise_for_status()
+            data = get_r.json()
+        return PullRequestInfo(
+            number=int(data["number"]),
+            html_url=str(data["html_url"]),
+            merged=bool(data.get("merged")),
+            state=str(data.get("state") or "open"),
+            head_ref=str(data.get("head", {}).get("ref") or ""),
         )
 
     def find_open_pr(self, *, head_ref: str) -> PullRequestInfo | None:
@@ -316,6 +357,8 @@ class GitHubClient:
         issue_key: str,
         path: str,
         content: str,
+        title: str,
+        body: str,
     ) -> PullRequestInfo:
         branch = f"propose/{issue_key}"
         self.create_branch(branch)
@@ -326,11 +369,8 @@ class GitHubClient:
             message=f"Propose Spec Request for {issue_key}",
         )
         return self.create_pull_request(
-            title=f"Spec Request: {issue_key}",
-            body=(
-                f"Frozen propose output for Jira `{issue_key}`.\n\n"
-                "Merge on Keyword Approval (or via vend automation)."
-            ),
+            title=title,
+            body=body,
             head=branch,
         )
 

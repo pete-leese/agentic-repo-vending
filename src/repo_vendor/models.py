@@ -73,6 +73,8 @@ class JiraUpdatePlan(BaseModel):
     labels_add: list[str] = Field(default_factory=list)
     labels_remove: list[str] = Field(default_factory=list)
     comment_markdown: str = ""
+    # When set, replace the issue Description with this markdown/text summary.
+    set_description: str | None = None
 
 
 class SpecEvals(BaseModel):
@@ -109,6 +111,9 @@ class PhaseResult(BaseModel):
     proposed_name: str | None = None
     request_path: str | None = None
     pr_url: str | None = None
+    confidence: float | None = None
+    cursor_agent_id: str | None = None
+    cursor_agent_url: str | None = None
     message: str
     skipped: bool = False
     jira: JiraUpdatePlan = Field(default_factory=JiraUpdatePlan)

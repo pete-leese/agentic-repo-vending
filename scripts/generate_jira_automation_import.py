@@ -43,6 +43,12 @@ def _load_config() -> dict:
 
 
 def _approval_regex(keywords: list[str]) -> str:
+    """Regex for Jira Automation REGEX_CONTAINS on {{comment.body.text}}.
+
+    Avoid lookbehind — Atlassian’s regex engine often rejects ``(?<!…)`` and then
+    the whole condition silently fails (audit: No actions performed), especially
+    on threaded replies where ADF markup already makes matching fragile.
+    """
     plus_one = False
     words: list[str] = []
     for raw in keywords:
@@ -52,12 +58,13 @@ def _approval_regex(keywords: list[str]) -> str:
         if k == "+1":
             plus_one = True
             continue
-        words.append(re.escape(k))
+        # Allow flexible whitespace inside multi-word phrases (ADF / soft breaks)
+        words.append(re.escape(k).replace(r"\ ", r"\s+"))
     parts: list[str] = []
     if words:
         parts.append(rf"\b(?:{'|'.join(words)})\b")
     if plus_one:
-        parts.append(r"(?<!\w)\+1(?!\w)")
+        parts.append(r"\+1")
     if not parts:
         parts = [r"\b(?:approved|lgtm)\b"]
     return rf"(?i)(?:{'|'.join(parts)})"
@@ -151,10 +158,19 @@ def _patch_from_config(data: dict, cfg: dict) -> None:
             # Keyword regex (approve rule only — do not overwrite label-retrigger regex)
             if (
                 cond.get("type") == "jira.comparator.condition"
-                and value.get("operator") == "REGEX_MATCHES"
-                and value.get("first") == "{{comment.body}}"
+                and value.get("first")
+                in {
+                    "{{comment.body}}",
+                    "{{comment.body.text}}",
+                    "{{issue.comments.last.body}}",
+                    "{{issue.comments.last.body.text}}",
+                }
+                and value.get("operator")
+                in {"REGEX_MATCHES", "REGEX_CONTAINS", "CONTAINS_REGEX"}
             ):
+                value["first"] = "{{comment.body.text}}"
                 value["second"] = regex
+                value["operator"] = "REGEX_CONTAINS"
 
 
 def generate(webhook_url: str, *, template: Path, out: Path) -> dict:

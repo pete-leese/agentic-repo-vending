@@ -76,6 +76,11 @@ def propose(
         dir_okay=False,
         help="Path to IssueSnapshot JSON file",
     ),
+    cursor_agent_id: str | None = typer.Option(
+        None,
+        "--cursor-agent-id",
+        help="Cloud Agent id (bc-…) to hyperlink in the Jira comment",
+    ),
     as_json: bool = typer.Option(True, "--json/--no-json", help="Print full result JSON on stdout"),
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
@@ -86,7 +91,7 @@ def propose(
     console.print(
         f"models: orchestrator={settings.orchestrator_model} eval={settings.eval_model}"
     )
-    result = propose_issue(issue, settings)
+    result = propose_issue(issue, settings, cursor_agent_id=cursor_agent_id)
     _emit(result, as_json=as_json)
     raise typer.Exit(0 if result.success else 1)
 
@@ -110,6 +115,11 @@ def vend(
         "--approval-comment",
         help="Comment body that must match Keyword Approval (approved|lgtm|...)",
     ),
+    cursor_agent_id: str | None = typer.Option(
+        None,
+        "--cursor-agent-id",
+        help="Cloud Agent id (bc-…) to hyperlink in the Jira comment",
+    ),
     as_json: bool = typer.Option(True, "--json/--no-json", help="Print full result JSON on stdout"),
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
@@ -117,7 +127,12 @@ def vend(
     settings = _with_dry_run(dry_run)
     issue = _load_issue(issue_json, issue_file)
     console.print(f"[bold]Vend[/bold] issue={issue.key} dry_run={settings.dry_run}")
-    result = vend_issue(issue, approval_comment=approval_comment, settings=settings)
+    result = vend_issue(
+        issue,
+        approval_comment=approval_comment,
+        settings=settings,
+        cursor_agent_id=cursor_agent_id,
+    )
     _emit(result, as_json=as_json)
     raise typer.Exit(0 if result.success else 1)
 
