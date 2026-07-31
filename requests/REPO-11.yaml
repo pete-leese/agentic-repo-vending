@@ -1,0 +1,22 @@
+issue_key: REPO-11
+summary: I need a EC2 module repo for aws
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: ec2
+  proposed_name: terraform-module-ec2-aws
+  confidence: 0.9
+  missing_info: []
+  notes: reconciled from judge proposed name
+proposed_name: terraform-module-ec2-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - terraform module naming matches rules/naming.md
+  missing_info: []
+status: proposed
+pr_url: null
