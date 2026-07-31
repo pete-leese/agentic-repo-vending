@@ -4,7 +4,7 @@
 
 jira:
   # Board humans use (documentation + doctor output)
-  board_url: "https://agentic-workflow-demo.atlassian.net/jira/software/projects/KAN/boards/2"
+  board_url: "https://agentic-workflow-demo.atlassian.net/jira/software/projects/REPO/boards/2"
   base_url: "https://agentic-workflow-demo.atlassian.net"
   statuses:
     new_request: "New Request"

@@ -102,7 +102,7 @@ class Settings(BaseSettings):
 
     # Jira
     jira_board_url: str = Field(
-        default="https://agentic-workflow-demo.atlassian.net/jira/software/projects/KAN/boards/2",
+        default="https://agentic-workflow-demo.atlassian.net/jira/software/projects/REPO/boards/2",
         alias="JIRA_BOARD_URL",
     )
     jira_base_url: str = Field(
