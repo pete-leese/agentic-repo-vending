@@ -1,23 +1,36 @@
 # Agentic Repo Vending
 
-Laptop-free workflow that vends public GitHub repositories from Jira tickets using **Cursor Cloud Agents**, **PydanticAI**, and dual-model evals.
+Laptop-free workflow that vends public GitHub repositories from Jira tickets using **Cursor Cloud Agents**, dual-model evals, and hybrid Spec Requests.
 
 **Owner:** [`pete-leese`](https://github.com/pete-leese)  
 **Jira board:** [KAN](https://agentic-workflow-demo.atlassian.net/jira/software/projects/KAN/boards/2)
 
 ## What it does
 
-1. Human moves a ticket to **In Review** and adds label **`repo-vend-approved`**
-2. Jira Automation POSTs a webhook to a Cursor Automation
-3. Cloud Agent uses **Atlassian tools** to load the issue, then runs `python -m repo_vendor vend --issue-file … --json`
-4. Orchestrator model **`composer-2.5`** extracts intent (free text and/or labels)
-5. Eval model **`composer-2`** judges naming + template choice
-6. Deterministic kebab/pattern rules must also pass (hard gate)
-7. On success: create public repo from `template-terraform-repo` or `template-python-repo`, protect `main`; Automation applies the JSON Jira plan (comment URL, **`repo-vended`** + **`repo-vend-success`** or **`repo-vend-warning`**, **Done**)
-8. On failure: Automation applies error plan (comment, **`repo-vend-error`**, **In Review**) — no repo created
-9. Rename: comment a new name on a vended ticket → re-eval → rename
+1. Human creates a ticket in **New Request**
+2. Jira Automation POSTs `action: propose` → agent runs evals → comments proposal + opens `requests/<KEY>.yaml` PR
+3. Human replies **`lgtm`** / **`approved`** / … (Keyword Approval)
+4. Jira POSTs `action: vend` → agent merges Spec PR → create-from-template → protect `main`
+5. No post-create rename
 
-Setup: [docs/jira-setup.md](docs/jira-setup.md) · Automation prompt: [docs/automation-setup.md](docs/automation-setup.md)
+Setup: [Getting started](docs/getting-started.md) · [Jira + webhook](docs/jira-setup.md) · [Cursor Automation](docs/automation-setup.md) · [Rules](rules/naming.md) · [Config](repo-vend.yaml)
+
+## Quick setup (Jira ↔ Cursor)
+
+1. Create a Cursor **Webhook** Automation ([automation-setup.md](docs/automation-setup.md)); copy webhook URL + **webhook API key**.
+2. Generate importable Jira rules (skill **generate-jira-automation**, or script):
+
+```bash
+python3 scripts/generate_jira_automation_import.py \
+  --webhook-url 'https://api2.cursor.sh/automations/webhook/<YOUR_ID>'
+```
+
+3. Import `docs/jira/automation-rules-import.json` via **Space Settings → Automation → Global automation**  
+   (or `{jira.base_url}/jira/settings/automation` from [`repo-vend.yaml`](repo-vend.yaml)).
+4. On **each** rule’s **Send web request** POST, set `Authorization: Bearer <webhook_api_key>`.
+5. Enable both rules; disable any old one-shot vend rule.
+
+Full walkthrough: [docs/getting-started.md](docs/getting-started.md).
 
 ## Architecture
 
@@ -25,59 +38,47 @@ Setup: [docs/jira-setup.md](docs/jira-setup.md) · Automation prompt: [docs/auto
 sequenceDiagram
   participant Human
   participant Jira as Jira_KAN
-  participant JiraAuto as Jira_Automation
-  participant CursorWH as Cursor_Webhook
-  participant CloudAgent as Cloud_Agent_composer25
-  participant Atlassian as Atlassian_tools
+  participant Agent as Cloud_Agent
   participant App as repo_vendor
-  participant Eval as Eval_composer2
-  participant Rules as Deterministic_Rules
+  participant Spec as requests_YAML
   participant GitHub as GitHub_pete_leese
 
-  Human->>Jira: Ticket description and/or labels
-  Human->>Jira: Move In Review plus repo-vend-approved
-  JiraAuto->>CursorWH: Webhook ticket key
-  CursorWH->>CloudAgent: Start run
-  CloudAgent->>Atlassian: Load issue / HITL / In Progress
-  CloudAgent->>App: vend --issue-file snapshot.json --json
-  App->>App: Extract intent composer-2.5
-  App->>Eval: Judge naming and template composer-2
-  App->>Rules: Kebab and pattern checks
-  alt Checks fail
-    App-->>CloudAgent: jira plan error
-    CloudAgent->>Atlassian: Comment + labels + In Review
-  else Checks pass
-    App->>GitHub: Create from template public
-    App->>GitHub: Branch protect main
-    App-->>CloudAgent: jira plan success/warning
-    CloudAgent->>Atlassian: Comment URL + repo-vended + Done
-  end
+  Human->>Jira: Create New_Request
+  Jira->>Agent: webhook propose
+  Agent->>App: propose --issue-file
+  App->>Spec: open PR
+  Agent->>Jira: proposal comment
+  Human->>Jira: comment lgtm
+  Jira->>Agent: webhook vend
+  Agent->>App: vend --approval-comment
+  App->>Spec: merge PR
+  App->>GitHub: create from template
+  Agent->>Jira: Done plus URL
 ```
 
-## Models (explicit)
+## Models
 
 | Role | Model ID |
 |------|----------|
-| Cloud Automation runtime | `composer-2.5` |
-| Orchestrator (intent) | `composer-2.5` |
+| Cloud Automation / orchestrator | `composer-2.5` |
 | Eval judge | `composer-2` |
-| Naming / template gate | deterministic (no LLM) |
+| Naming gate | deterministic |
 
 ## Quick links
 
-- [Getting started](docs/getting-started.md)
+- [Getting started](docs/getting-started.md) (includes generate + import Jira rules)
+- [Customizing (config, templates, rules)](docs/customizing.md)
+- [Naming / HITL rules](rules/naming.md)
+- [Project config](repo-vend.yaml)
+- [Eval prompts (JSON)](evals/)
+- [Spec requests](requests/)
 - [Jira + webhook setup](docs/jira-setup.md)
-- [Demo walkthrough](docs/demo-walkthrough.md)
+- [Generate Jira Automation skill](.agents/skills/generate-jira-automation/SKILL.md)
 - [Automation setup](docs/automation-setup.md)
-- [Post-MVP (OTEL / harnesses)](docs/post-mvp.md)
+- [Demo walkthrough](docs/demo-walkthrough.md)
+- [Post-MVP](docs/post-mvp.md)
 - [Domain glossary](CONTEXT.md)
 - [ADRs](docs/adr/)
-
-## Triggering
-
-**Jira Automation → Cursor webhook** is the primary wake path.  
-**Atlassian tools** handle all board I/O once the agent is running (not a wake trigger).  
-See [docs/jira-setup.md](docs/jira-setup.md).
 
 ## Local development
 
@@ -85,20 +86,12 @@ See [docs/jira-setup.md](docs/jira-setup.md).
 pip install -e '.[dev,cursor]'
 pytest
 python -m repo_vendor doctor
-echo '{"key":"KAN-1","summary":"python logging helper","description":"...","status":"In Review","labels":["repo-vend-approved","type-python"]}' \
-  | python -m repo_vendor vend --json --dry-run
+echo '{"key":"KAN-1","summary":"python logging helper","description":"...","status":"New Request","labels":["type-python"]}' \
+  | python -m repo_vendor propose --json --dry-run
 ```
 
-## Publish template repos
+## Secrets (Cloud Agent — never commit)
 
-```bash
-export GITHUB_TOKEN=...   # classic PAT with repo scope
-chmod +x scripts/publish_templates.sh
-./scripts/publish_templates.sh
-```
-
-## Secrets (Cloud Agent dashboard — never commit)
-
-- `CURSOR_API_KEY` — generate a **new** key (rotate any key that was pasted into chat)
-- `GITHUB_TOKEN` — classic `repo` recommended for create-from-template
-- Jira board access: **Atlassian Automation tool** (no `JIRA_*` API tokens in the CLI)
+- `CURSOR_API_KEY`
+- `GITHUB_TOKEN` — classic `repo` (Spec PRs + template generate)
+- Jira: **Atlassian Automation tool**

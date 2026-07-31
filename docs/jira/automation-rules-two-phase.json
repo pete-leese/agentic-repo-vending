@@ -1,0 +1,269 @@
+{
+  "cloud": true,
+  "rules": [
+    {
+      "id": 3987601,
+      "clientKey": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
+      "name": "repo-vend-propose",
+      "state": "DISABLED",
+      "description": "On issue create in New Request, webhook Cursor Automation action=propose (evals + Spec PR + proposal comment).",
+      "authorAccountId": "5f4622c1fdc3f5003ff4e536",
+      "actor": {
+        "type": "ACCOUNT_ID",
+        "value": "557058:f58131cb-b67d-43c7-b30d-6b58d40bd077"
+      },
+      "created": 1785519000000,
+      "updated": 1785519000000,
+      "trigger": {
+        "id": "5ddd3f9b-14f9-4896-b5d9-9a380cb3e3d4",
+        "parentId": null,
+        "conditionParentId": null,
+        "component": "TRIGGER",
+        "type": "jira.issue.event.trigger:created",
+        "value": {
+          "eventFilters": [
+            "ari:cloud:jira:e21f2b5d-9b3c-43ce-8d38-88bed1474bfd:project/10001"
+          ],
+          "eventKey": "jira:issue_created",
+          "issueEvent": "issue_created"
+        },
+        "conditions": [
+          {
+            "id": "9b1ab616-bc80-40fb-933c-937861c1c9f5",
+            "parentId": null,
+            "conditionParentId": "5ddd3f9b-14f9-4896-b5d9-9a380cb3e3d4",
+            "component": "CONDITION",
+            "type": "jira.issue.condition",
+            "value": {
+              "selectedField": {
+                "type": "ID",
+                "value": "status"
+              },
+              "selectedFieldType": "status",
+              "comparison": "EQUALS",
+              "compareValue": {
+                "type": "NAME",
+                "modifier": null,
+                "value": "New Request",
+                "multiValue": false,
+                "source": null
+              }
+            },
+            "conditions": [],
+            "children": [],
+            "schemaVersion": 3,
+            "connectionId": null,
+            "checksum": null
+          }
+        ],
+        "children": [],
+        "schemaVersion": 1,
+        "connectionId": null,
+        "checksum": null
+      },
+      "components": [
+        {
+          "id": "47e5e302-9836-4b2f-a371-fef364a941b0",
+          "parentId": null,
+          "conditionParentId": null,
+          "component": "ACTION",
+          "type": "jira.issue.outgoing.webhook",
+          "value": {
+            "url": "https://api2.cursor.sh/automations/webhook/27670af7-8ce3-11f1-a7d1-d6b4613131ce",
+            "urlSecure": false,
+            "headers": [
+              {
+                "id": "_header_1785519000001",
+                "name": "Authorization",
+                "value": "Bearer REPLACE_WITH_CURSOR_WEBHOOK_API_KEY",
+                "headerSecure": true
+              },
+              {
+                "id": "_header_1785519000002",
+                "name": "Content-Type",
+                "value": "application/json",
+                "headerSecure": false
+              }
+            ],
+            "sendIssue": false,
+            "contentType": "custom",
+            "customBody": "{\n  \"action\": \"propose\",\n  \"issue\": {\n    \"key\": \"{{issue.key}}\"\n  }\n}",
+            "method": "POST",
+            "responseEnabled": false,
+            "continueOnErrorEnabled": false
+          },
+          "conditions": [],
+          "children": [],
+          "schemaVersion": 1,
+          "connectionId": null,
+          "checksum": null
+        }
+      ],
+      "canOtherRuleTrigger": false,
+      "notifyOnError": "FIRSTERROR",
+      "projects": [],
+      "labels": [],
+      "tags": [],
+      "ruleScope": {
+        "resources": [
+          "ari:cloud:jira:e21f2b5d-9b3c-43ce-8d38-88bed1474bfd:project/10001"
+        ]
+      },
+      "ruleHome": {
+        "ruleLifecycleHome": {
+          "locationARI": "ari:cloud:jira:e21f2b5d-9b3c-43ce-8d38-88bed1474bfd:project/10001"
+        },
+        "ruleBillingHome": {
+          "locationARI": "ari:cloud:jira-software::site/e21f2b5d-9b3c-43ce-8d38-88bed1474bfd"
+        }
+      },
+      "writeAccessType": "OWNER_ONLY",
+      "collaborators": [],
+      "billingType": "NORMAL",
+      "idUuid": "7495d9ce-7550-4bcd-985f-538c346f40fc",
+      "partitionId": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
+      "currentVersionId": null
+    },
+    {
+      "id": 3987602,
+      "clientKey": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
+      "name": "repo-vend-approve",
+      "state": "DISABLED",
+      "description": "On Keyword Approval comment (approved|lgtm|looks good|ship it|+1), webhook Cursor Automation action=vend. Likes/reactions are not used.",
+      "authorAccountId": "5f4622c1fdc3f5003ff4e536",
+      "actor": {
+        "type": "ACCOUNT_ID",
+        "value": "557058:f58131cb-b67d-43c7-b30d-6b58d40bd077"
+      },
+      "created": 1785519000001,
+      "updated": 1785519000001,
+      "trigger": {
+        "id": "28521f7f-e6d6-4cc7-a666-44062cce2db5",
+        "parentId": null,
+        "conditionParentId": null,
+        "component": "TRIGGER",
+        "type": "jira.issue.event.trigger:commented",
+        "value": {
+          "eventFilters": [
+            "ari:cloud:jira:e21f2b5d-9b3c-43ce-8d38-88bed1474bfd:project/10001"
+          ],
+          "eventKey": "jira:issue_updated",
+          "issueEvent": "issue_commented",
+          "commentType": "COMMENT"
+        },
+        "conditions": [
+          {
+            "id": "c2846249-5a1c-41d3-992d-d2aa530e3648",
+            "parentId": null,
+            "conditionParentId": "28521f7f-e6d6-4cc7-a666-44062cce2db5",
+            "component": "CONDITION",
+            "type": "jira.comparator.condition",
+            "value": {
+              "first": "{{comment.body}}",
+              "second": "(?i)(?:\\b(?:approved|lgtm|looks good|ship it)\\b|(?<!\\w)\\+1(?!\\w))",
+              "operator": "REGEX_MATCHES"
+            },
+            "conditions": [],
+            "children": [],
+            "schemaVersion": 1,
+            "connectionId": null,
+            "checksum": null
+          },
+          {
+            "id": "0bd0ea4c-99fb-4921-a94d-dd5c535ec9b8",
+            "parentId": null,
+            "conditionParentId": "28521f7f-e6d6-4cc7-a666-44062cce2db5",
+            "component": "CONDITION",
+            "type": "jira.issue.condition",
+            "value": {
+              "selectedField": {
+                "type": "ID",
+                "value": "labels"
+              },
+              "selectedFieldType": "labels",
+              "comparison": "CONTAINS_NONE",
+              "compareValue": {
+                "type": "NAME",
+                "modifier": null,
+                "value": "[\"repo-vended\"]",
+                "multiValue": true,
+                "source": null
+              }
+            },
+            "conditions": [],
+            "children": [],
+            "schemaVersion": 3,
+            "connectionId": null,
+            "checksum": null
+          }
+        ],
+        "children": [],
+        "schemaVersion": 1,
+        "connectionId": null,
+        "checksum": null
+      },
+      "components": [
+        {
+          "id": "2109f7f5-8f7f-4434-8609-5ad01e645d8a",
+          "parentId": null,
+          "conditionParentId": null,
+          "component": "ACTION",
+          "type": "jira.issue.outgoing.webhook",
+          "value": {
+            "url": "https://api2.cursor.sh/automations/webhook/27670af7-8ce3-11f1-a7d1-d6b4613131ce",
+            "urlSecure": false,
+            "headers": [
+              {
+                "id": "_header_1785519000003",
+                "name": "Authorization",
+                "value": "Bearer REPLACE_WITH_CURSOR_WEBHOOK_API_KEY",
+                "headerSecure": true
+              },
+              {
+                "id": "_header_1785519000004",
+                "name": "Content-Type",
+                "value": "application/json",
+                "headerSecure": false
+              }
+            ],
+            "sendIssue": false,
+            "contentType": "custom",
+            "customBody": "{\n  \"action\": \"vend\",\n  \"issue\": {\n    \"key\": \"{{issue.key}}\"\n  },\n  \"comment\": {\n    \"body\": \"{{comment.body}}\"\n  }\n}",
+            "method": "POST",
+            "responseEnabled": false,
+            "continueOnErrorEnabled": false
+          },
+          "conditions": [],
+          "children": [],
+          "schemaVersion": 1,
+          "connectionId": null,
+          "checksum": null
+        }
+      ],
+      "canOtherRuleTrigger": false,
+      "notifyOnError": "FIRSTERROR",
+      "projects": [],
+      "labels": [],
+      "tags": [],
+      "ruleScope": {
+        "resources": [
+          "ari:cloud:jira:e21f2b5d-9b3c-43ce-8d38-88bed1474bfd:project/10001"
+        ]
+      },
+      "ruleHome": {
+        "ruleLifecycleHome": {
+          "locationARI": "ari:cloud:jira:e21f2b5d-9b3c-43ce-8d38-88bed1474bfd:project/10001"
+        },
+        "ruleBillingHome": {
+          "locationARI": "ari:cloud:jira-software::site/e21f2b5d-9b3c-43ce-8d38-88bed1474bfd"
+        }
+      },
+      "writeAccessType": "OWNER_ONLY",
+      "collaborators": [],
+      "billingType": "NORMAL",
+      "idUuid": "57778e74-3e56-4e7f-ab2c-4dd8a9075fa0",
+      "partitionId": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
+      "currentVersionId": null
+    }
+  ]
+}

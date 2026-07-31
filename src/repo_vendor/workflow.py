@@ -1,22 +1,29 @@
-"""Vend/rename orchestration: evals + GitHub only. Jira is applied by Atlassian Automation tools."""
+"""Propose / vend orchestration: evals + GitHub. Jira applied by Atlassian tools."""
 
 from __future__ import annotations
 
 import logging
-import re
 
+from repo_vendor.approval import is_approval_comment
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.github_client import GitHubClient
 from repo_vendor.harness import eval_with_harness, extract_intent_with_harness, get_harness
-from repo_vendor.models import IssueSnapshot, JiraUpdatePlan, VendResult
+from repo_vendor.models import (
+    IssueSnapshot,
+    JiraUpdatePlan,
+    PhaseResult,
+    SpecEvals,
+    SpecRequest,
+)
 from repo_vendor.naming import to_kebab, validate_name_and_template
 from repo_vendor.observability import record_eval, record_vend, span
+from repo_vendor.readme_gen import build_vended_readme
+from repo_vendor.spec import request_rel_path, spec_from_yaml, spec_to_yaml
 
 logger = logging.getLogger(__name__)
 
 
 def _outcome_labels(settings: Settings, outcome: str) -> tuple[list[str], list[str]]:
-    """Return (labels_add, labels_remove) for success|warning|error."""
     success = settings.jira_label_success
     warning = settings.jira_label_warning
     error = settings.jira_label_error
@@ -27,11 +34,11 @@ def _outcome_labels(settings: Settings, outcome: str) -> tuple[list[str], list[s
 
 def _failure_markdown(errors: list[str], missing: list[str]) -> str:
     lines = [
-        "## Repo vend failed (evals)",
+        "## Repo vend proposal failed (evals)",
         "",
-        "No GitHub repository was created.",
+        "No Spec Request PR was opened and no GitHub repository will be created.",
         "",
-        "Add more context and/or labels, keep `repo-vend-approved`, status **In Review**, then re-run.",
+        "Add more context and/or labels, then create a new ticket or re-trigger **propose**.",
         "",
         "Optional labels: `type-terraform` | `type-python`, `tf-module` | `tf-root`, "
         "`platform-aws` | `platform-gcp` | `platform-azure`.",
@@ -50,6 +57,49 @@ def _failure_markdown(errors: list[str], missing: list[str]) -> str:
             "- Terraform root: `terraform-<name>`",
             "- Python: `python-<purpose-kebab>`",
             "- Always kebab-case",
+            "",
+            "See `rules/naming.md`.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _proposal_markdown(
+    *,
+    issue_key: str,
+    proposed_name: str,
+    template: str,
+    llm_passed: bool,
+    deterministic_passed: bool,
+    reasons: list[str],
+    missing: list[str],
+    pr_url: str | None,
+) -> str:
+    eval_ok = llm_passed and deterministic_passed
+    indicator = "PASSED" if eval_ok else "FAILED"
+    lines = [
+        "## Repo vend proposal",
+        "",
+        f"**Evals:** `{indicator}` (LLM={'pass' if llm_passed else 'fail'}, "
+        f"deterministic={'pass' if deterministic_passed else 'fail'})",
+        "",
+        f"- **Issue:** `{issue_key}`",
+        f"- **Proposed name:** `{proposed_name}`",
+        f"- **Template:** `{template}`",
+    ]
+    if pr_url:
+        lines.append(f"- **Spec Request PR:** [{pr_url}]({pr_url})")
+    if reasons:
+        lines.extend(["", "### Reasons", *[f"- {r}" for r in reasons]])
+    if missing:
+        lines.extend(["", "### Missing", *[f"- {m}" for m in missing]])
+    lines.extend(
+        [
+            "",
+            "### Approve",
+            "Reply with one of: `approved`, `lgtm`, `looks good`, `ship it`, or `+1`.",
+            "That merges the Spec (if open) and creates the GitHub repository.",
+            "There is no post-create rename — fix the ticket and re-propose if the name is wrong.",
         ]
     )
     return "\n".join(lines)
@@ -61,6 +111,7 @@ def _success_markdown(
     template: str,
     *,
     main_protected: bool,
+    readme_updated: bool = True,
 ) -> str:
     guardrail = (
         "Direct pushes to `main` are blocked (PR required)."
@@ -71,6 +122,14 @@ def _success_markdown(
             "Outcome label: `repo-vend-warning`."
         )
     )
+    readme_line = (
+        "Project README was written for this repository (template boilerplate replaced)."
+        if readme_updated
+        else (
+            "Could **not** rewrite README.md after create — "
+            "please replace the template README manually. Outcome: `repo-vend-warning`."
+        )
+    )
     return "\n".join(
         [
             "## Repository vended",
@@ -79,9 +138,9 @@ def _success_markdown(
             f"- **URL:** [{repo_url}]({repo_url})",
             f"- **Template:** `{template}`",
             f"- **Guardrail:** {guardrail}",
+            f"- **README:** {readme_line}",
             "",
-            "Happy with the name? If not, comment e.g. "
-            "`Please rename to python-better-name` and we will re-evaluate and rename.",
+            "Name changes after create are not supported — open a new Repo Vend Request if needed.",
         ]
     )
 
@@ -89,14 +148,14 @@ def _success_markdown(
 def _error_plan(settings: Settings, markdown: str) -> JiraUpdatePlan:
     add, remove = _outcome_labels(settings, "error")
     return JiraUpdatePlan(
-        transition_to=settings.jira_in_review_status,
+        transition_to=None,
         labels_add=add,
-        labels_remove=remove,
+        labels_remove=[*remove, settings.jira_proposed_label],
         comment_markdown=markdown,
     )
 
 
-def _success_plan(
+def _success_vend_plan(
     settings: Settings,
     *,
     outcome: str,
@@ -107,15 +166,8 @@ def _success_plan(
     return JiraUpdatePlan(
         transition_to=settings.jira_done_status,
         labels_add=add,
-        labels_remove=remove,
+        labels_remove=[*remove, settings.jira_proposed_label],
         comment_markdown=markdown,
-    )
-
-
-def is_approved(issue: IssueSnapshot, settings: Settings) -> bool:
-    return (
-        issue.status.lower() == settings.jira_in_review_status.lower()
-        and settings.jira_approved_label in issue.labels
     )
 
 
@@ -123,42 +175,21 @@ def is_vended(issue: IssueSnapshot, settings: Settings) -> bool:
     return settings.jira_vended_label in issue.labels
 
 
-def vend_issue(issue: IssueSnapshot, settings: Settings | None = None) -> VendResult:
-    """Run evals + GitHub create. Caller applies `result.jira` via Atlassian tools."""
+def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> PhaseResult:
+    """Run evals; on pass open Spec Request PR and return Jira proposal plan."""
     settings = settings or get_settings()
     key = issue.key
-    with span("vend", issue_key=key):
+    with span("propose", issue_key=key):
         if is_vended(issue, settings):
-            msg = (
-                f"Issue {key} already has `{settings.jira_vended_label}`; "
-                "skipping create (idempotent)."
-            )
-            record_vend(True, issue_key=key, skipped=True)
-            return VendResult(
+            msg = f"Issue {key} already has `{settings.jira_vended_label}`; skipping propose."
+            return PhaseResult(
                 success=True,
                 outcome="skipped",
+                phase="propose",
                 issue_key=key,
                 message=msg,
                 skipped=True,
-                jira=JiraUpdatePlan(
-                    comment_markdown=f"## Vend skipped\n\n{msg}",
-                ),
-            )
-
-        if not is_approved(issue, settings):
-            msg = (
-                f"HITL gate not satisfied: need status "
-                f"`{settings.jira_in_review_status}` and label "
-                f"`{settings.jira_approved_label}` "
-                f"(status={issue.status}, labels={issue.labels})."
-            )
-            record_vend(False, issue_key=key, reason="hitl")
-            return VendResult(
-                success=False,
-                outcome="error",
-                issue_key=key,
-                message=msg,
-                jira=_error_plan(settings, f"## Vend blocked\n\n{msg}"),
+                jira=JiraUpdatePlan(comment_markdown=f"## Propose skipped\n\n{msg}"),
             )
 
         harness = get_harness(settings)
@@ -188,16 +219,18 @@ def vend_issue(issue: IssueSnapshot, settings: Settings | None = None) -> VendRe
             gate = validate_name_and_template(intent, settings)
         record_eval(gate.passed, stage="deterministic")
 
+        errors = list(gate.errors)
+        if not verdict.passed:
+            errors.extend(verdict.reasons or ["LLM eval judge failed"])
+        missing = list(dict.fromkeys([*intent.missing_info, *verdict.missing_info]))
+
         if not verdict.passed or not gate.passed:
-            errors = list(gate.errors)
-            if not verdict.passed:
-                errors.extend(verdict.reasons or ["LLM eval judge failed"])
-            missing = list(dict.fromkeys([*intent.missing_info, *verdict.missing_info]))
             comment = _failure_markdown(errors, missing)
-            record_vend(False, issue_key=key, reason="eval")
-            return VendResult(
+            record_vend(False, issue_key=key, reason="eval_propose")
+            return PhaseResult(
                 success=False,
                 outcome="error",
+                phase="propose",
                 issue_key=key,
                 message=comment,
                 jira=_error_plan(settings, comment),
@@ -206,49 +239,228 @@ def vend_issue(issue: IssueSnapshot, settings: Settings | None = None) -> VendRe
         assert gate.normalized_name and gate.template
         name = gate.normalized_name
         template = gate.template
+        path = request_rel_path(key)
+        spec = SpecRequest(
+            issue_key=key,
+            summary=issue.summary,
+            description=issue.description,
+            intent=intent.model_dump(mode="json"),
+            proposed_name=name,
+            template=template,
+            evals=SpecEvals(
+                llm_passed=True,
+                deterministic_passed=True,
+                reasons=list(verdict.reasons or []),
+                missing_info=missing,
+            ),
+            status="proposed",
+        )
 
-        with GitHubClient(settings) as github:
-            if github.repo_exists(name):
-                msg = (
-                    f"GitHub repo `{name}` already exists; not recreating. "
-                    f"`{settings.jira_vended_label}` was not applied — pick a new "
-                    "name or resolve the collision, then re-run."
-                )
-                record_vend(False, issue_key=key, reason="exists")
-                return VendResult(
-                    success=False,
-                    outcome="error",
+        pr_url: str | None = None
+        try:
+            with GitHubClient(settings) as github:
+                pr = github.open_spec_pr(
                     issue_key=key,
-                    repo_name=name,
-                    message=msg,
-                    jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
+                    path=path,
+                    content=spec_to_yaml(spec),
                 )
+                pr_url = pr.html_url
+                spec.pr_url = pr_url
+                # Refresh file on branch with pr_url filled
+                github.put_file(
+                    path=path,
+                    content=spec_to_yaml(spec),
+                    branch=f"propose/{key}",
+                    message=f"Record Spec PR URL for {key}",
+                )
+        except Exception as exc:  # noqa: BLE001
+            msg = f"Failed to open Spec Request PR: {exc}"
+            record_vend(False, issue_key=key, reason="spec_pr")
+            return PhaseResult(
+                success=False,
+                outcome="error",
+                phase="propose",
+                issue_key=key,
+                proposed_name=name,
+                template=template,
+                request_path=path,
+                message=msg,
+                jira=_error_plan(settings, f"## Propose failed\n\n{msg}"),
+            )
 
-            try:
-                created = github.create_from_template(
+        markdown = _proposal_markdown(
+            issue_key=key,
+            proposed_name=name,
+            template=template,
+            llm_passed=True,
+            deterministic_passed=True,
+            reasons=list(verdict.reasons or []),
+            missing=missing,
+            pr_url=pr_url,
+        )
+        record_vend(True, issue_key=key, repo=name, phase="propose")
+        return PhaseResult(
+            success=True,
+            outcome="success",
+            phase="propose",
+            issue_key=key,
+            proposed_name=name,
+            template=template,
+            request_path=path,
+            pr_url=pr_url,
+            message=f"Proposal ready for {name}",
+            jira=JiraUpdatePlan(
+                transition_to=None,
+                labels_add=[settings.jira_proposed_label],
+                labels_remove=[settings.jira_label_error],
+                comment_markdown=markdown,
+            ),
+        )
+
+
+def vend_issue(
+    issue: IssueSnapshot,
+    *,
+    approval_comment: str | None = None,
+    settings: Settings | None = None,
+) -> PhaseResult:
+    """Merge Spec if needed, load requests/<key>.yaml, create-from-template."""
+    settings = settings or get_settings()
+    key = issue.key
+    with span("vend", issue_key=key):
+        if is_vended(issue, settings):
+            msg = (
+                f"Issue {key} already has `{settings.jira_vended_label}`; "
+                "skipping create (idempotent)."
+            )
+            record_vend(True, issue_key=key, skipped=True)
+            return PhaseResult(
+                success=True,
+                outcome="skipped",
+                phase="vend",
+                issue_key=key,
+                message=msg,
+                skipped=True,
+                jira=JiraUpdatePlan(comment_markdown=f"## Vend skipped\n\n{msg}"),
+            )
+
+        if not is_approval_comment(approval_comment):
+            msg = (
+                "Keyword Approval required. Reply with `approved`, `lgtm`, "
+                "`looks good`, `ship it`, or `+1`."
+            )
+            record_vend(False, issue_key=key, reason="keyword")
+            return PhaseResult(
+                success=False,
+                outcome="error",
+                phase="vend",
+                issue_key=key,
+                message=msg,
+                jira=_error_plan(settings, f"## Vend blocked\n\n{msg}"),
+            )
+
+        path = request_rel_path(key)
+        try:
+            with GitHubClient(settings) as github:
+                github.ensure_spec_merged(key)
+                try:
+                    raw = github.get_file_text(path)
+                except FileNotFoundError:
+                    # dry-run / local fallback
+                    from repo_vendor.spec import request_local_path
+
+                    local = request_local_path(key)
+                    if not local.is_file():
+                        raise
+                    raw = local.read_text(encoding="utf-8")
+
+                spec = spec_from_yaml(raw)
+                name = spec.proposed_name
+                template = spec.template
+
+                if github.repo_exists(name):
+                    msg = (
+                        f"GitHub repo `{name}` already exists; not recreating. "
+                        f"`{settings.jira_vended_label}` was not applied."
+                    )
+                    record_vend(False, issue_key=key, reason="exists")
+                    return PhaseResult(
+                        success=False,
+                        outcome="error",
+                        phase="vend",
+                        issue_key=key,
+                        repo_name=name,
+                        template=template,
+                        request_path=path,
+                        message=msg,
+                        jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
+                    )
+
+                try:
+                    created = github.create_from_template(
+                        template=template,
+                        name=name,
+                        description=f"Vended from Jira {key}: {spec.summary}",
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    msg = f"GitHub create-from-template failed: {exc}"
+                    record_vend(False, issue_key=key, reason="github_create")
+                    return PhaseResult(
+                        success=False,
+                        outcome="error",
+                        phase="vend",
+                        issue_key=key,
+                        message=msg,
+                        jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
+                    )
+
+                main_protected = github.protect_main(created.name)
+                readme = build_vended_readme(
+                    repo_name=created.name,
+                    summary=spec.summary,
+                    description=spec.description,
+                    issue_key=key,
                     template=template,
-                    name=name,
-                    description=f"Vended from Jira {key}: {issue.summary}",
+                    repo_url=created.html_url,
                 )
-            except Exception as exc:  # noqa: BLE001
-                msg = f"GitHub create-from-template failed: {exc}"
-                record_vend(False, issue_key=key, reason="github_create")
-                return VendResult(
-                    success=False,
-                    outcome="error",
-                    issue_key=key,
-                    message=msg,
-                    jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
+                readme_ok = github.write_vended_readme(
+                    repo_name=created.name,
+                    content=readme,
                 )
+        except FileNotFoundError:
+            msg = (
+                f"Spec Request `{path}` not found on the control-plane repo. "
+                "Run **propose** first and ensure the Spec PR is mergeable."
+            )
+            record_vend(False, issue_key=key, reason="missing_spec")
+            return PhaseResult(
+                success=False,
+                outcome="error",
+                phase="vend",
+                issue_key=key,
+                request_path=path,
+                message=msg,
+                jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
+            )
+        except Exception as exc:  # noqa: BLE001
+            msg = f"Vend failed while loading Spec / GitHub: {exc}"
+            record_vend(False, issue_key=key, reason="vend_exc")
+            return PhaseResult(
+                success=False,
+                outcome="error",
+                phase="vend",
+                issue_key=key,
+                message=msg,
+                jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
+            )
 
-            main_protected = github.protect_main(created.name)
-
-        outcome = "success" if main_protected else "warning"
+        outcome = "success" if main_protected and readme_ok else "warning"
         markdown = _success_markdown(
             created.name,
             created.html_url,
             template,
             main_protected=main_protected,
+            readme_updated=readme_ok,
         )
         record_vend(True, issue_key=key, repo=created.name, protected=main_protected)
         summary = (
@@ -256,142 +468,16 @@ def vend_issue(issue: IssueSnapshot, settings: Settings | None = None) -> VendRe
             if main_protected
             else f"Created (warning: branch protection failed) {created.html_url}"
         )
-        return VendResult(
+        return PhaseResult(
             success=True,
             outcome=outcome,
+            phase="vend",
             issue_key=key,
             repo_name=created.name,
             repo_url=created.html_url,
             template=template,
+            proposed_name=name,
+            request_path=path,
             message=summary,
-            jira=_success_plan(settings, outcome=outcome, markdown=markdown),
-        )
-
-
-_RENAME_PATTERNS = [
-    re.compile(r"rename\s+to\s+[`'\"]?([a-zA-Z0-9._/\- ]+)[`'\"]?", re.I),
-    re.compile(r"new\s+name\s*:\s*[`'\"]?([a-zA-Z0-9._/\- ]+)[`'\"]?", re.I),
-    re.compile(r"please\s+use\s+[`'\"]?([a-zA-Z0-9._/\- ]+)[`'\"]?", re.I),
-]
-
-
-def _parse_rename_candidate(text: str) -> str | None:
-    for pat in _RENAME_PATTERNS:
-        m = pat.search(text)
-        if m:
-            return to_kebab(m.group(1))
-    for line in text.splitlines():
-        line = line.strip().strip("`")
-        if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)+", line):
-            if line.startswith(("terraform-", "python-")):
-                return line
-    return None
-
-
-def rename_from_issue(
-    issue: IssueSnapshot,
-    *,
-    current_name: str,
-    comment_text: str,
-    settings: Settings | None = None,
-) -> VendResult:
-    """Re-eval + GitHub rename. Caller applies `result.jira` via Atlassian tools."""
-    settings = settings or get_settings()
-    key = issue.key
-    with span("rename", issue_key=key):
-        if not is_vended(issue, settings):
-            msg = f"Issue {key} is not marked `{settings.jira_vended_label}`."
-            return VendResult(
-                success=False,
-                outcome="error",
-                issue_key=key,
-                message=msg,
-                jira=_error_plan(settings, f"## Rename blocked\n\n{msg}"),
-            )
-
-        proposed = _parse_rename_candidate(comment_text)
-        if not proposed:
-            msg = (
-                "Could not find a new repo name in the comment. "
-                "Try: `Please rename to python-my-new-name`."
-            )
-            return VendResult(
-                success=False,
-                outcome="error",
-                issue_key=key,
-                message=msg,
-                jira=_error_plan(settings, f"## Rename failed\n\n{msg}"),
-            )
-
-        harness = get_harness(settings)
-        intent = extract_intent_with_harness(
-            harness,
-            model=settings.orchestrator_model,
-            summary=issue.summary,
-            description=f"{issue.description}\nRepo name: {proposed}",
-            labels=issue.labels,
-        )
-        intent.proposed_name = proposed
-        verdict = eval_with_harness(
-            harness,
-            model=settings.eval_model,
-            intent=intent,
-            summary=issue.summary,
-            description=f"Rename request to {proposed}",
-        )
-        gate = validate_name_and_template(intent, settings)
-        record_eval(verdict.passed and gate.passed, stage="rename")
-
-        if not verdict.passed or not gate.passed:
-            comment = _failure_markdown(
-                gate.errors + (verdict.reasons or []),
-                verdict.missing_info,
-            )
-            return VendResult(
-                success=False,
-                outcome="error",
-                issue_key=key,
-                message=comment,
-                jira=_error_plan(settings, comment),
-            )
-
-        assert gate.normalized_name
-        with GitHubClient(settings) as github:
-            renamed = github.rename_repo(current_name, gate.normalized_name)
-            main_protected = github.protect_main(renamed.name)
-
-        outcome = "success" if main_protected else "warning"
-        guardrail = (
-            "Branch protection on `main` is in place (PR required)."
-            if main_protected
-            else (
-                "Branch protection on `main` could **not** be applied; "
-                "configure manually. Outcome: `repo-vend-warning`."
-            )
-        )
-        markdown = "\n".join(
-            [
-                "## Repository renamed",
-                "",
-                f"- **Name:** `{renamed.name}`",
-                f"- **URL:** [{renamed.html_url}]({renamed.html_url})",
-                f"- **Guardrail:** {guardrail}",
-                "",
-                "Comment another name if you want a further rename.",
-            ]
-        )
-        add, remove = _outcome_labels(settings, outcome)
-        return VendResult(
-            success=True,
-            outcome=outcome,
-            issue_key=key,
-            repo_name=renamed.name,
-            repo_url=renamed.html_url,
-            template=gate.template,
-            message=markdown,
-            jira=JiraUpdatePlan(
-                labels_add=add,
-                labels_remove=remove,
-                comment_markdown=markdown,
-            ),
+            jira=_success_vend_plan(settings, outcome=outcome, markdown=markdown),
         )

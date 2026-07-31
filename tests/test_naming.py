@@ -46,6 +46,25 @@ def test_python_name():
     assert gate.template == "template-python-repo"
 
 
+def test_generic_name():
+    intent = ExtractedIntent(
+        project_type=ProjectType.GENERIC,
+        purpose="billing-gateway",
+    )
+    assert build_proposed_name(intent) == "billing-gateway"
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.template == "template-generic-repo"
+
+
+def test_default_type_generic_when_unset():
+    intent = ExtractedIntent(purpose="docs-site", project_type=None)
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "docs-site"
+    assert gate.template == "template-generic-repo"
+
+
 def test_module_missing_platform_fails():
     intent = ExtractedIntent(
         project_type=ProjectType.TERRAFORM,

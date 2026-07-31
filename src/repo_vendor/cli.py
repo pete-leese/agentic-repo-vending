@@ -1,7 +1,7 @@
 """CLI entrypoint for Cloud Agent / local runs.
 
 Jira board updates are performed by the Cursor Automation using Atlassian tools.
-This CLI only runs evals + GitHub and prints a JSON plan for Jira side-effects.
+This CLI runs propose (evals + Spec PR) and vend (merge Spec + create-from-template).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from rich.console import Console
 
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.models import IssueSnapshot
-from repo_vendor.workflow import rename_from_issue, vend_issue
+from repo_vendor.workflow import propose_issue, vend_issue
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 console = Console(stderr=True)
@@ -51,13 +51,44 @@ def _load_issue(issue_json: str | None, issue_file: Path | None) -> IssueSnapsho
 def _emit(result, *, as_json: bool) -> None:
     payload = result.model_dump()
     if as_json:
-        # Machine-readable on stdout for the Automation to parse
         print(json.dumps(payload, indent=2))
     else:
-        console.print(f"[bold]outcome={result.outcome}[/bold] success={result.success}")
+        console.print(
+            f"[bold]phase={result.phase} outcome={result.outcome}[/bold] "
+            f"success={result.success}"
+        )
         console.print(result.message)
         console.print("Jira plan (apply with Atlassian tools):")
         console.print(json.dumps(payload["jira"], indent=2))
+
+
+@app.command()
+def propose(
+    issue_json: str | None = typer.Option(
+        None,
+        "--issue-json",
+        help="IssueSnapshot JSON (key, summary, description, status, labels)",
+    ),
+    issue_file: Path | None = typer.Option(
+        None,
+        "--issue-file",
+        exists=True,
+        dir_okay=False,
+        help="Path to IssueSnapshot JSON file",
+    ),
+    as_json: bool = typer.Option(True, "--json/--no-json", help="Print full result JSON on stdout"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Run evals and open a Spec Request PR (no create-from-template)."""
+    settings = _with_dry_run(dry_run)
+    issue = _load_issue(issue_json, issue_file)
+    console.print(f"[bold]Propose[/bold] issue={issue.key} dry_run={settings.dry_run}")
+    console.print(
+        f"models: orchestrator={settings.orchestrator_model} eval={settings.eval_model}"
+    )
+    result = propose_issue(issue, settings)
+    _emit(result, as_json=as_json)
+    raise typer.Exit(0 if result.success else 1)
 
 
 @app.command()
@@ -74,39 +105,19 @@ def vend(
         dir_okay=False,
         help="Path to IssueSnapshot JSON file",
     ),
+    approval_comment: str | None = typer.Option(
+        None,
+        "--approval-comment",
+        help="Comment body that must match Keyword Approval (approved|lgtm|...)",
+    ),
     as_json: bool = typer.Option(True, "--json/--no-json", help="Print full result JSON on stdout"),
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
-    """Vend a GitHub repo from an issue snapshot (Jira I/O via Atlassian Automation tools)."""
+    """Merge Spec Request if needed and create GitHub repo from frozen YAML."""
     settings = _with_dry_run(dry_run)
     issue = _load_issue(issue_json, issue_file)
     console.print(f"[bold]Vend[/bold] issue={issue.key} dry_run={settings.dry_run}")
-    console.print(
-        f"models: orchestrator={settings.orchestrator_model} eval={settings.eval_model}"
-    )
-    result = vend_issue(issue, settings)
-    _emit(result, as_json=as_json)
-    raise typer.Exit(0 if result.success else 1)
-
-
-@app.command("rename")
-def rename_cmd(
-    current_name: str = typer.Option(..., "--current-name", help="Current GitHub repo name"),
-    comment: str = typer.Option(..., "--comment", help="Comment text proposing the new name"),
-    issue_json: str | None = typer.Option(None, "--issue-json"),
-    issue_file: Path | None = typer.Option(None, "--issue-file", exists=True, dir_okay=False),
-    as_json: bool = typer.Option(True, "--json/--no-json"),
-    dry_run: bool = typer.Option(False, "--dry-run"),
-) -> None:
-    """Re-eval and rename; apply result.jira with Atlassian tools."""
-    settings = _with_dry_run(dry_run)
-    issue = _load_issue(issue_json, issue_file)
-    result = rename_from_issue(
-        issue,
-        current_name=current_name,
-        comment_text=comment,
-        settings=settings,
-    )
+    result = vend_issue(issue, approval_comment=approval_comment, settings=settings)
     _emit(result, as_json=as_json)
     raise typer.Exit(0 if result.success else 1)
 
@@ -114,15 +125,23 @@ def rename_cmd(
 @app.command()
 def doctor() -> None:
     """Print config readiness (does not print secret values)."""
+    from repo_vendor.project_config import project_config_path
+
     s = get_settings()
     checks = {
         "GITHUB_TOKEN": bool(s.github_token),
         "CURSOR_API_KEY": bool(s.cursor_api_key),
         "GITHUB_OWNER": s.github_owner,
+        "CONTROL_PLANE_REPO": s.control_plane_repo,
+        "JIRA_BOARD_URL": s.jira_board_url,
+        "TEMPLATES": f"tf={s.template_terraform} py={s.template_python} generic={s.template_generic}",
+        "DEFAULT_PROJECT_TYPE": s.default_project_type,
+        "APPROVAL_KEYWORDS": ", ".join(s.approval_keywords),
         "ORCHESTRATOR_MODEL": s.orchestrator_model,
         "EVAL_MODEL": s.eval_model,
         "ALLOW_LLM_FALLBACK": s.allow_llm_fallback,
-        "note": "Jira board I/O uses Atlassian Automation tools (not JIRA_* env in CLI)",
+        "repo-vend.yaml": str(project_config_path() or "(not found)"),
+        "note": "Jira I/O via Atlassian tools; HITL = Keyword Approval after propose",
     }
     for k, v in checks.items():
         console.print(f"{k}: {v}")

@@ -1,0 +1,21 @@
+{
+  "id": "judge-naming",
+  "description": "Eval judge: naming + template selection must match the ticket and rules/naming.md",
+  "model_role": "eval",
+  "system": "You are an eval judge for repo naming and template selection.\nYou must NOT invent missing terraform platform/type. Return ONLY JSON:\npassed: bool\nproposed_name: string|null\ntemplate: \"template-terraform-repo\"|\"template-python-repo\"|\"template-generic-repo\"|null\nreasons: string array\nmissing_info: string array\nBe strict for terraform modules (need shape + platform). For unclear non-infra/non-python requests, prefer generic + template-generic-repo.\nApply the naming and template rules from the Rules section below (sourced from rules/naming.md / repo-vend.yaml).",
+  "user_template": "Ticket summary: {summary}\nDescription: {description}\nExtracted intent JSON: {intent_json}\n\n## Rules\n{rules}\n\nValidate the proposed name and template against those rules. Allowed templates: template-terraform-repo, template-python-repo, template-generic-repo.\n",
+  "output_keys": [
+    "passed",
+    "proposed_name",
+    "template",
+    "reasons",
+    "missing_info"
+  ],
+  "allowed_templates": [
+    "template-terraform-repo",
+    "template-python-repo",
+    "template-generic-repo"
+  ],
+  "fail_closed": true,
+  "rules_ref": "rules/naming.md"
+}

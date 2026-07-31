@@ -1,0 +1,5 @@
+interface:
+  display_name: "Generate Jira Automation"
+  short_description: "Build importable Jira Automation JSON from a Cursor webhook URL"
+policy:
+  allow_implicit_invocation: true

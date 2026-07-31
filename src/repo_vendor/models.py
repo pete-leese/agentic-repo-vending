@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class ProjectType(StrEnum):
     TERRAFORM = "terraform"
     PYTHON = "python"
+    GENERIC = "generic"
 
 
 class TerraformShape(StrEnum):
@@ -74,13 +75,40 @@ class JiraUpdatePlan(BaseModel):
     comment_markdown: str = ""
 
 
-class VendResult(BaseModel):
+class SpecEvals(BaseModel):
+    llm_passed: bool
+    deterministic_passed: bool
+    reasons: list[str] = Field(default_factory=list)
+    missing_info: list[str] = Field(default_factory=list)
+
+
+class SpecRequest(BaseModel):
+    """Frozen Spec under requests/<ISSUE-KEY>.yaml."""
+
+    issue_key: str
+    summary: str = ""
+    description: str = ""
+    intent: dict[str, Any] = Field(default_factory=dict)
+    proposed_name: str
+    template: str
+    evals: SpecEvals
+    status: Literal["proposed", "approved", "vended"] = "proposed"
+    pr_url: str | None = None
+
+
+class PhaseResult(BaseModel):
+    """Result of propose or vend (JSON for Automation)."""
+
     success: bool
     outcome: Literal["success", "warning", "error", "skipped"] = "error"
+    phase: Literal["propose", "vend"] = "vend"
     issue_key: str
     repo_name: str | None = None
     repo_url: str | None = None
     template: str | None = None
+    proposed_name: str | None = None
+    request_path: str | None = None
+    pr_url: str | None = None
     message: str
     skipped: bool = False
     jira: JiraUpdatePlan = Field(default_factory=JiraUpdatePlan)

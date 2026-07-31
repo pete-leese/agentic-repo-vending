@@ -1,4 +1,7 @@
-"""PydanticAI typed agents — Cursor harness performs live inference in MVP."""
+"""PydanticAI typed agents — Cursor harness performs live inference in MVP.
+
+System prompts are loaded from /evals/*.json (same source as harness.py).
+"""
 
 from __future__ import annotations
 
@@ -7,14 +10,12 @@ from pydantic_ai.models.test import TestModel
 
 from repo_vendor.models import EvalVerdict, ExtractedIntent
 from repo_vendor.naming import validate_name_and_template
+from repo_vendor.prompts import load_eval
 
 extract_agent = Agent(
     TestModel(),
     output_type=ExtractedIntent,
-    system_prompt=(
-        "Extract repo vend intent from Jira summary, description, and labels. "
-        "Prefer explicit labels when present."
-    ),
+    system_prompt=str(load_eval("extract-intent")["system"]),
 )
 
 
@@ -28,8 +29,5 @@ def run_deterministic_gate(ctx: RunContext[None], intent: ExtractedIntent) -> di
 eval_agent = Agent(
     TestModel(),
     output_type=EvalVerdict,
-    system_prompt=(
-        "Judge whether the proposed repo name and template match the request. "
-        "Fail closed when information is missing."
-    ),
+    system_prompt=str(load_eval("judge-naming")["system"]),
 )

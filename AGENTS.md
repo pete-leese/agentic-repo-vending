@@ -2,36 +2,37 @@
 
 ## Environment
 
-[`.cursor/environment.json`](../.cursor/environment.json) runs:
+[`.cursor/environment.json`](.cursor/environment.json) runs `pip install -e '.[dev,cursor]'` (fallback without cursor extra).
+
+Enable the **Atlassian** tool. Secrets: `GITHUB_TOKEN`, `CURSOR_API_KEY`.
+
+## Rules and evals
+
+| Path | Purpose |
+|------|---------|
+| [`rules/naming.md`](rules/naming.md) | Naming, Keyword Approval, two-phase HITL |
+| [`repo-vend.yaml`](repo-vend.yaml) | Board URL, approval keywords, template map |
+| [`evals/extract-intent.json`](evals/extract-intent.json) | Orchestrator extract |
+| [`evals/judge-naming.json`](evals/judge-naming.json) | Eval judge |
+| [`requests/`](requests/) | Spec Request YAML (via PR) |
+| [`docs/customizing.md`](docs/customizing.md) | How to customize templates and rules |
+| Skill **generate-jira-automation** | Ask for Cursor webhook URL → write importable `docs/jira/*.json` |
+
+## CLI
 
 ```bash
-pip install -e '.[dev,cursor]' || pip install -e '.[dev]'
-```
-
-Idempotent install; secrets come from the Cloud Agent dashboard. Enable the **Atlassian** tool on the Automation for all Jira board I/O.
-
-## Running the vend CLI
-
-`repo_vendor` does evals + GitHub only. Pass an IssueSnapshot JSON (from Atlassian tools) and apply `result.jira` back via Atlassian tools.
-
-```bash
-python -m repo_vendor vend --issue-file /tmp/issue.json --json
-python -m repo_vendor rename --issue-file /tmp/issue.json --current-name old-name --comment "Please rename to python-new-name" --json
+python -m repo_vendor propose --issue-file /tmp/issue.json --json
+python -m repo_vendor vend --issue-file /tmp/issue.json --approval-comment "lgtm" --json
 python -m repo_vendor doctor
 ```
 
-Full Automation prompt: `docs/automation-setup.md`. Triggered by **Jira webhook → Cursor Automation**.
-
-## Models
-
-- Orchestrator / automation: `composer-2.5`
-- Eval judge: `composer-2`
-- Deterministic gate always authoritative
+Automation prompt: `docs/automation-setup.md`.
 
 ## Do not
 
 - Commit `.env` or API keys
-- Vend when `repo-vended` is already present (CLI enforces idempotency)
+- Create when `repo-vended` is present
 - Skip deterministic checks
-- Call Jira REST from the CLI — use Atlassian Automation tools
-- Use the global `CURSOR_API_KEY` as the Jira webhook Bearer token (needs the automation-scoped webhook key)
+- Support post-create rename
+- Call Jira REST from the CLI
+- Use global `CURSOR_API_KEY` as the webhook Bearer token

@@ -1,77 +1,48 @@
 # Demo walkthrough
 
-Use this script to show the MVP end-to-end.
-
 ## Prep checklist
 
-- [ ] Templates published and marked as GitHub templates
-- [ ] Cloud Agent secrets set (`CURSOR_API_KEY`, `GITHUB_TOKEN`, Jira)
-- [ ] Cursor Automation webhook URL pasted into Jira Automation
-- [ ] Labels `repo-vend-approved` / `repo-vended` available
-- [ ] Fresh `CURSOR_API_KEY` (never reuse a key pasted into chat)
+- [ ] Templates published (`./scripts/publish_templates.sh`)
+- [ ] Secrets: `CURSOR_API_KEY`, `GITHUB_TOKEN`
+- [ ] Cursor Webhook Automation + Atlassian tool ([automation-setup.md](automation-setup.md))
+- [ ] Jira rules imported via `scripts/generate_jira_automation_import.py` (or skill **generate-jira-automation**)
+- [ ] Both rules’ **Send web request** have `Authorization: Bearer <webhook_api_key>`
+- [ ] Labels `repo-vend-proposed` / `repo-vended` available
 
 ## Path A — Happy path (Terraform module)
 
-1. Create Jira issue in KAN:
+1. Create Jira issue in **New Request**:
    - **Summary:** Terraform S3 module for AWS
    - **Description:** `I need a new repo for a terraform module for S3 bucket for my aws platform`
-2. Move to **In Review**
-3. Add label **`repo-vend-approved`**
-4. Expect within ~1–2 minutes:
-   - Comment with repo URL for `terraform-module-s3-bucket-aws` (or normalized equivalent)
-   - Label **`repo-vended`**
-   - Public repo under `pete-leese` created from `template-terraform-repo`
-   - `main` protected (PR required)
-5. Open the repo — show Actions workflow + pre-commit + sample module
-
-### Talking points
-
-- Free-flowing English was enough (labels optional)
-- Eval used **`composer-2`**; orchestration **`composer-2.5`**
-- Deterministic gate enforces kebab + pattern
+2. Expect propose comment: evals PASSED, proposed name, template, Spec PR link
+3. Reply **`lgtm`**
+4. Expect: Spec PR merged, public repo created, `repo-vended`, **Done**
 
 ## Path B — Eval failure then fix
 
 1. Create issue: **Summary** `Need a repo` / **Description** `something for infra maybe`
-2. In Review + `repo-vend-approved`
-3. Expect comment listing missing type / shape / platform / purpose — **no GitHub repo**
-4. Edit description to a clear Terraform module request (or add labels `type-terraform`, `tf-module`, `platform-aws`)
-5. Re-trigger (re-add label or transition again per your Jira rule)
-6. Expect successful vend
+2. Expect proposal **failed** comment — **no Spec PR**
+3. Edit description (or add labels), create a **new** ticket or re-fire propose
+4. Approve with `lgtm` after a green proposal
 
-## Path C — Python + rename
+## Path C — Python
 
-1. Ticket: `Create a python invoice parser service`
-2. Approve → vend → expect `python-invoice-parser` (or similar kebab)
-3. Comment: `Please rename to python-invoice-parser-cli`
-4. Trigger rename automation (or run locally):
-
-```bash
-cat > /tmp/issue.json <<'EOF'
-{"key":"KAN-XX","summary":"python invoice parser","description":"Create a python invoice parser service","status":"In Review","labels":["repo-vended","type-python"]}
-EOF
-python -m repo_vendor rename \
-  --issue-file /tmp/issue.json \
-  --current-name python-invoice-parser \
-  --comment "Please rename to python-invoice-parser-cli" \
-  --json
-```
-
-5. Expect re-eval + rename; Automation applies `result.jira` via Atlassian tools
+1. Ticket: `Create a python invoice parser service` in New Request
+2. Propose → expect `python-invoice-parser` (or similar)
+3. Reply `approved` → vend
+4. No rename path — wrong name means re-propose before approve
 
 ## Path D — Idempotency
 
-Re-fire vend on an already `repo-vended` ticket → agent skips create and reports idempotent skip.
+Re-fire vend on an already `repo-vended` ticket → skip create.
 
-## Dry-run without cloud
+## Dry-run locally
 
 ```bash
 export ALLOW_LLM_FALLBACK=true
 export DRY_RUN=true
 cat > /tmp/issue.json <<'EOF'
-{"key":"KAN-XX","summary":"python logging helper","description":"A small python utility","status":"In Review","labels":["repo-vend-approved","type-python"]}
+{"key":"KAN-XX","summary":"python logging helper","description":"A small python utility","status":"New Request","labels":["type-python"]}
 EOF
-python -m repo_vendor vend --issue-file /tmp/issue.json --json --dry-run
+python -m repo_vendor propose --issue-file /tmp/issue.json --json --dry-run
 ```
-
-No Jira credentials needed locally — pass a snapshot. Without `CURSOR_API_KEY`, heuristic extract + deterministic gate still run (`ALLOW_LLM_FALLBACK=true`).
