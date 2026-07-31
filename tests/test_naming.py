@@ -1,6 +1,7 @@
 from repo_vendor.models import ExtractedIntent, Platform, ProjectType, TerraformShape
 from repo_vendor.naming import (
     build_proposed_name,
+    enrich_intent_from_heuristics,
     infer_intent_from_labels_and_text,
     reconcile_intent_from_proposed_name,
     to_kebab,
@@ -76,6 +77,25 @@ def test_module_missing_platform_fails():
     assert not gate.passed
 
 
+def test_enrich_upgrades_generic_when_text_implies_terraform():
+    intent = ExtractedIntent(
+        project_type=ProjectType.GENERIC,
+        purpose="s3",
+        proposed_name="terraform-module-s3-aws",
+    )
+    enriched = enrich_intent_from_heuristics(
+        intent,
+        summary="i need an s3 terraform module repo",
+        description="",
+        labels=[],
+    )
+    assert enriched.project_type == ProjectType.TERRAFORM
+    assert enriched.terraform_shape == TerraformShape.MODULE
+    assert enriched.platform == Platform.AWS
+    gate = validate_name_and_template(enriched)
+    assert gate.passed
+
+
 def test_heuristic_extract_from_free_text():
     intent = infer_intent_from_labels_and_text(
         summary="Need terraform module for S3 bucket on AWS",
@@ -88,6 +108,83 @@ def test_heuristic_extract_from_free_text():
     gate = validate_name_and_template(intent)
     assert gate.passed
     assert gate.normalized_name == "terraform-module-s3-bucket-aws"
+
+
+def test_heuristic_s3_module_appends_aws():
+    intent = infer_intent_from_labels_and_text(
+        summary="i need an s3 terraform module repo",
+        description="",
+        labels=[],
+    )
+    assert intent.project_type == ProjectType.TERRAFORM
+    assert intent.terraform_shape == TerraformShape.MODULE
+    assert intent.platform == Platform.AWS
+    assert intent.purpose == "s3"
+    assert build_proposed_name(intent) == "terraform-module-s3-aws"
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "terraform-module-s3-aws"
+
+
+def test_module_proposed_name_without_platform_gets_suffix():
+    intent = ExtractedIntent(
+        project_type=ProjectType.TERRAFORM,
+        terraform_shape=TerraformShape.MODULE,
+        platform=Platform.AWS,
+        purpose="s3",
+        proposed_name="terraform-module-s3",  # LLM omitted -aws
+    )
+    assert build_proposed_name(intent) == "terraform-module-s3-aws"
+    assert validate_name_and_template(intent).passed
+
+
+def test_generic_fallback_plain_kebab_only():
+    intent = ExtractedIntent(
+        project_type=ProjectType.GENERIC,
+        purpose="billing-gateway",
+    )
+    assert build_proposed_name(intent) == "billing-gateway"
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.template == "template-generic-repo"
+    assert gate.normalized_name == "billing-gateway"
+
+
+def test_generic_name_builder_strips_typed_prefixes():
+    intent = ExtractedIntent(
+        project_type=ProjectType.GENERIC,
+        purpose="terraform-module-billing-aws",
+    )
+    assert build_proposed_name(intent) == "billing"
+
+
+def test_heuristic_ec2_module_without_saying_terraform():
+    intent = infer_intent_from_labels_and_text(
+        summary="I need a EC2 module repo for aws",
+        description="",
+        labels=[],
+    )
+    assert intent.project_type == ProjectType.TERRAFORM
+    assert intent.terraform_shape == TerraformShape.MODULE
+    assert intent.platform == Platform.AWS
+    assert build_proposed_name(intent) == "terraform-module-ec2-aws"
+    gate = validate_name_and_template(intent)
+    assert gate.passed, gate.errors
+    assert gate.normalized_name == "terraform-module-ec2-aws"
+    assert gate.template == "template-terraform-repo"
+
+
+def test_generic_mistype_with_terraform_module_proposed_name():
+    """LLM named a terraform module but left project_type generic/default."""
+    intent = ExtractedIntent(
+        project_type=ProjectType.GENERIC,
+        purpose="ec2",
+        proposed_name="terraform-module-ec2-aws",
+        platform=Platform.AWS,
+    )
+    gate = validate_name_and_template(intent)
+    assert gate.passed, gate.errors
+    assert gate.normalized_name == "terraform-module-ec2-aws"
 
 
 def test_heuristic_eks_implies_aws_without_platform_label():

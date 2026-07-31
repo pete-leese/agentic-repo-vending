@@ -16,6 +16,9 @@ from repo_vendor.models import (
     SpecRequest,
 )
 from repo_vendor.naming import (
+    enrich_intent_from_heuristics,
+    enrich_intent_platform,
+    enrich_intent_type_and_shape,
     reconcile_intent_from_proposed_name,
     to_kebab,
     validate_name_and_template,
@@ -220,19 +223,24 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 description=issue.description,
                 labels=issue.labels,
             )
-            if intent.platform is None:
-                from repo_vendor.platform_aliases import infer_platform_from_text
-
-                blob = f"{issue.summary}\n{issue.description}\n{' '.join(issue.labels)}"
-                inferred = infer_platform_from_text(blob)
-                if inferred is not None:
-                    intent.platform = inferred
-                    if "platform" in " ".join(intent.missing_info).lower():
-                        intent.missing_info = [
-                            m
-                            for m in intent.missing_info
-                            if "platform" not in m.lower()
-                        ]
+            intent = enrich_intent_from_heuristics(
+                intent,
+                issue.summary,
+                issue.description,
+                issue.labels,
+            )
+            intent = enrich_intent_platform(
+                intent,
+                summary=issue.summary,
+                description=issue.description,
+                labels=issue.labels,
+            )
+            intent = enrich_intent_type_and_shape(
+                intent,
+                summary=issue.summary,
+                description=issue.description,
+                labels=issue.labels,
+            )
 
         with span("eval_llm", model=settings.eval_model):
             verdict = eval_with_harness(
