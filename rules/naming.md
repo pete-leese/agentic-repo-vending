@@ -41,14 +41,22 @@ Status flow: **New Request** (create / re-propose) → propose → **In Progress
 
 Snake_case, spaces, and CamelCase are normalized to kebab-case before checks.
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| Terraform module | `terraform-module-<name>-<platform>` | `terraform-module-s3-bucket-aws` |
-| Terraform root | `terraform-<name>` | `terraform-eks-gitops-management` |
-| Python | `python-<purpose-kebab>` | `python-invoice-parser` |
-| Generic | plain kebab (no `terraform-` / `python-` prefix) | `billing-gateway` |
+| Type | Pattern | Example | When |
+|------|---------|---------|------|
+| Terraform module | `terraform-module-<name>-<platform>` | `terraform-module-s3-bucket-aws` | Terraform / infra module (incl. “EC2 module…”, “S3 module…”) |
+| Terraform root | `terraform-<name>` | `terraform-eks-gitops-management` | Terraform root / project |
+| Python | `python-<purpose-kebab>` | `python-invoice-parser` | Clearly a Python app/library |
+| **Generic** | **plain kebab only** (no `terraform-` / `python-` prefix, no required platform suffix) | `billing-gateway` | **Fallback** when the request is not clearly terraform or python |
 
-Platforms: `aws` | `gcp` | `azure`.
+### Type selection / fallback
+
+1. **Terraform** — labels `type-terraform` / `tf-module` / `tf-root`, the word terraform, **or** infra phrasing (`module` + cloud service/platform such as EC2, S3, EKS, aws/gcp/azure).
+2. **Python** — `type-python` or clear python intent.
+3. **Generic (default)** — everything else, via `github.default_project_type` in `repo-vend.yaml` (default **generic**).
+
+Generic uses **`template-generic-repo`** and is **not** held to terraform/python naming standards — only plain kebab-case. Do not invent a `terraform-module-…` name and then score it as generic (that was the EC2 failure mode).
+
+Platforms: `aws` | `gcp` | `azure` (required for **terraform modules** only; not for generic).
 
 ### Platform from service name
 
@@ -62,7 +70,7 @@ When `platform-*` / `aws|gcp|azure` is absent, derive platform from cloud-specif
 
 Example: summary `terraform module for EKS` + label `tf-module` → platform `aws` → `terraform-module-eks-…-aws` (no `platform-aws` label required).
 
-If type is unclear, `github.default_project_type` in `repo-vend.yaml` applies (default **generic**).
+Phrases like **“EC2 module repo for aws”** or **“S3 module”** (without the word terraform) still mean **terraform + module**, not generic.
 
 ## Templates
 
@@ -85,5 +93,5 @@ Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propos
 1. **Orchestrator** (`claude-sonnet-5` by default in `repo-vend.yaml`) extracts intent — prompt: `evals/extract-intent.json`.
 2. **Judge** (`composer-2.5` by default) validates naming/template — prompt: `evals/judge-naming.json` (includes this file). Orchestrator and judge must be different model IDs.
 3. **Deterministic gate** must also pass (kebab + pattern + template map). LLM pass alone is not enough.
-4. Do not invent missing terraform shape; derive platform via labels, explicit cloud words, or service aliases above. Use **generic** when the request is not clearly terraform or python.
+4. Do not invent missing terraform shape; derive platform via labels, explicit cloud words, or service aliases above. Use **generic** (plain kebab + `template-generic-repo`) when the request is not clearly terraform or python — generic is **not** subject to terraform/python naming patterns.
 5. Both LLM judge and deterministic gate must pass before opening a Spec PR / commenting a green proposal.

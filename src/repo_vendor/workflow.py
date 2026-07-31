@@ -8,7 +8,6 @@ from repo_vendor.approval import is_approval_comment
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.github_client import GitHubClient
 from repo_vendor.harness import eval_with_harness, extract_intent_with_harness, get_harness
-from repo_vendor.naming import enrich_intent_from_heuristics
 from repo_vendor.models import (
     IssueSnapshot,
     JiraUpdatePlan,
@@ -16,7 +15,13 @@ from repo_vendor.models import (
     SpecEvals,
     SpecRequest,
 )
-from repo_vendor.naming import to_kebab, validate_name_and_template
+from repo_vendor.naming import (
+    enrich_intent_from_heuristics,
+    enrich_intent_platform,
+    enrich_intent_type_and_shape,
+    to_kebab,
+    validate_name_and_template,
+)
 from repo_vendor.observability import record_eval, record_vend, span
 from repo_vendor.readme_gen import build_vended_readme
 from repo_vendor.spec import request_rel_path, spec_from_yaml, spec_to_yaml
@@ -223,19 +228,18 @@ def propose_issue(issue: IssueSnapshot, settings: Settings | None = None) -> Pha
                 issue.description,
                 issue.labels,
             )
-            if intent.platform is None:
-                from repo_vendor.platform_aliases import infer_platform_from_text
-
-                blob = f"{issue.summary}\n{issue.description}\n{' '.join(issue.labels)}"
-                inferred = infer_platform_from_text(blob)
-                if inferred is not None:
-                    intent.platform = inferred
-                    if "platform" in " ".join(intent.missing_info).lower():
-                        intent.missing_info = [
-                            m
-                            for m in intent.missing_info
-                            if "platform" not in m.lower()
-                        ]
+            intent = enrich_intent_platform(
+                intent,
+                summary=issue.summary,
+                description=issue.description,
+                labels=issue.labels,
+            )
+            intent = enrich_intent_type_and_shape(
+                intent,
+                summary=issue.summary,
+                description=issue.description,
+                labels=issue.labels,
+            )
 
         with span("eval_llm", model=settings.eval_model):
             verdict = eval_with_harness(
