@@ -1,0 +1,26 @@
+issue_key: REPO-15
+summary: give me a repo for a terraform GKE terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: gcp
+  purpose: give-me-gke
+  proposed_name: terraform-module-gke-gcp
+  confidence: 1.0
+  missing_info: []
+  notes: llm_extract
+proposed_name: terraform-module-give-me-gke-gcp
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Request is explicitly for a Terraform GKE module; GKE maps to platform gcp.
+  - "Extracted intent has project_type=terraform, terraform_shape=module, and platform=gcp\
+    \ \u2014 sufficient for module naming without a platform-* label."
+  - Proposed name terraform-module-gke-gcp matches required pattern terraform-module-<purpose>-<platform>.
+  - Terraform project type maps to template-terraform-repo per repo-vend rules.
+  missing_info: []
+status: proposed
+pr_url: null
