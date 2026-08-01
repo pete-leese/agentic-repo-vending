@@ -23,11 +23,12 @@ from repo_vendor.models import (
     SpecRequest,
 )
 from repo_vendor.naming import (
+    apply_eval_verdict,
+    demote_untyped_weak_intent,
     enrich_intent_from_heuristics,
     enrich_intent_platform,
     enrich_intent_type_and_shape,
     reconcile_intent_from_proposed_name,
-    to_kebab,
     validate_name_and_template,
 )
 from repo_vendor.observability import record_eval, record_vend, span
@@ -363,6 +364,12 @@ def propose_issue(
                 description=issue.description,
                 labels=issue.labels,
             )
+            intent = demote_untyped_weak_intent(
+                intent,
+                summary=issue.summary,
+                description=issue.description,
+                labels=issue.labels,
+            )
 
         with span("eval_llm", model=settings.eval_model):
             verdict = eval_with_harness(
@@ -374,8 +381,8 @@ def propose_issue(
             )
         record_eval(verdict.passed, stage="llm", model=settings.eval_model)
 
-        if verdict.proposed_name and not intent.proposed_name:
-            intent.proposed_name = to_kebab(verdict.proposed_name)
+        # Judge name/template win over extract mistypes (REPO-16 disconnect).
+        intent = apply_eval_verdict(intent, verdict, settings)
         intent = reconcile_intent_from_proposed_name(intent)
 
         with span("eval_deterministic"):
@@ -416,6 +423,15 @@ def propose_issue(
         intent.proposed_name = name
         intent = reconcile_intent_from_proposed_name(intent)
         intent.confidence = derive_confidence(intent, gate_passed=True)
+        # Reasons must describe the *final* locked name/template (not a judge
+        # essay that disagreed with extract while the gate published extract).
+        reasons = list(verdict.reasons or [])
+        lock_line = (
+            f"Deterministic gate locked `{name}` → `{template}` "
+            f"(type={intent.project_type.value if intent.project_type else 'unknown'})."
+        )
+        if lock_line not in reasons:
+            reasons.append(lock_line)
         path = request_rel_path(key)
         spec = SpecRequest(
             issue_key=key,
@@ -427,7 +443,7 @@ def propose_issue(
             evals=SpecEvals(
                 llm_passed=True,
                 deterministic_passed=True,
-                reasons=list(verdict.reasons or []),
+                reasons=reasons,
                 missing_info=missing,
             ),
             status="proposed",
@@ -476,7 +492,7 @@ def propose_issue(
             template=template,
             llm_passed=True,
             deterministic_passed=True,
-            reasons=list(verdict.reasons or []),
+            reasons=reasons,
             missing=missing,
             pr_url=pr_url,
             confidence=intent.confidence,

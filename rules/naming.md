@@ -50,11 +50,13 @@ Snake_case, spaces, and CamelCase are normalized to kebab-case before checks.
 
 ### Type selection / fallback
 
-1. **Terraform** — labels `type-terraform` / `tf-module` / `tf-root`, the word terraform, **or** infra phrasing (`module` + cloud service/platform such as EC2, S3, EKS, aws/gcp/azure).
+1. **Terraform** — labels `type-terraform` / `tf-module` / `tf-root`, the word terraform, **or** infra phrasing (`module` + cloud service/platform such as EC2, S3, EKS, aws/gcp/azure). The bare word **“project”** is **not** terraform (e.g. “repo for my project invoices-service” → **generic**).
 2. **Python** — `type-python` or clear python intent.
 3. **Generic (default)** — everything else, via `github.default_project_type` in `repo-vend.yaml` (default **generic**).
 
-Generic uses **`template-generic-repo`** and is **not** held to terraform/python naming standards — only plain kebab-case. Do not invent a `terraform-module-…` name and then score it as generic (that was the EC2 failure mode).
+Generic uses **`template-generic-repo`** and is **not** held to terraform/python naming standards — only plain kebab-case. Do not invent a `terraform-module-…` name and then score it as generic (that was the EC2 failure mode). Do not invent `terraform-<name>` for an unclear service name when the judge says generic (REPO-16).
+
+When the **eval judge** returns a `proposed_name` / `template`, those override a conflicting extract before the deterministic gate — proposal **name**, **template**, and **reasons** must stay aligned.
 
 Platforms: `aws` | `gcp` | `azure` (required for **terraform modules** only; not for generic).
 

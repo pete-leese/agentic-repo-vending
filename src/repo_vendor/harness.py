@@ -155,15 +155,23 @@ def eval_with_harness(
     description: str,
 ) -> EvalVerdict:
     if harness.name == "heuristic":
-        # Defer to deterministic gate; soft-pass with built name if intent complete
-        from repo_vendor.naming import build_proposed_name, select_template
+        # Defer to deterministic gate; soft-pass once a name can be built.
+        # Apply default_project_type here — extract often leaves type unset for
+        # generic tickets (REPO-16), and the gate would still pass.
+        from repo_vendor.config import get_settings
+        from repo_vendor.naming import (
+            _apply_default_type,
+            build_proposed_name,
+            select_template,
+        )
 
-        name = build_proposed_name(intent)
-        if name and intent.project_type and not intent.missing_info:
+        working = _apply_default_type(intent.model_copy(deep=True), get_settings())
+        name = build_proposed_name(working)
+        if name and working.project_type is not None and not intent.missing_info:
             return EvalVerdict(
                 passed=True,
                 proposed_name=name,
-                template=select_template(intent.project_type),
+                template=select_template(working.project_type),
                 reasons=["heuristic soft-pass; deterministic gate is authoritative"],
             )
         return EvalVerdict(
