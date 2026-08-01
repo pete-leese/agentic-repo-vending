@@ -1,0 +1,74 @@
+name: terraform-docs
+
+on:
+  pull_request:
+    paths:
+      - "**/*.tf"
+      - ".terraform-docs.yml"
+      - "README.md"
+      - ".github/workflows/terraform-docs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.tf"
+      - ".terraform-docs.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Generate terraform-docs into README (PR branch)
+        if: github.event_name == 'pull_request'
+        uses: terraform-docs/gh-actions@v1.4.1
+        with:
+          working-dir: .
+          output-file: README.md
+          output-method: inject
+          config-file: .terraform-docs.yml
+          git-push: "true"
+          git-commit-message: "docs: update terraform-docs in README"
+
+      - name: Generate terraform-docs (main — prepare PR)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: terraform-docs/gh-actions@v1.4.1
+        with:
+          working-dir: .
+          output-file: README.md
+          output-method: inject
+          config-file: .terraform-docs.yml
+          git-push: "false"
+
+      - name: Open docs PR and merge to main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- README.md; then
+            echo "README already up to date"
+            exit 0
+          fi
+          BRANCH="chore/terraform-docs-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add README.md
+          git commit -m "docs: update terraform-docs in README"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "docs: update terraform-docs in README" \
+            --body "Automated terraform-docs refresh from \`${GITHUB_SHA}\`. Merges back to main." \
+            --base main \
+            --head "$BRANCH"
+          # Prefer immediate merge; fall back to auto-merge if checks/reviews block.
+          gh pr merge --squash --delete-branch || gh pr merge --squash --delete-branch --auto

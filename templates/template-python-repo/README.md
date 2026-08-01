@@ -1,14 +1,28 @@
-# Python repository template
+# {{REPO_NAME}}
 
-Boilerplate for Python projects. Vended by [agentic-repo-vending](https://github.com/pete-leese/agentic-repo-vending).
+{{DESCRIPTION}}
+
+## Origin
+
+- **Jira:** `{{ISSUE_KEY}}`
+- **Summary:** {{SUMMARY}}
+- **Created from template:** `{{TEMPLATE}}`
+- **Repository:** {{REPO_URL}}
 
 ## Layout
 
-- `src/example_pkg` — sample package
+- `src/` — Python package
 - `tests/` — pytest
 - `.github/workflows/python.yml` — ruff + pytest
 - `.pre-commit-config.yaml` — local guardrails
 
-## Guardrails
+## Getting started
 
-After vend, `main` is branch-protected (PR required; no direct pushes).
+```bash
+pip install -e '.[dev]'
+pytest
+```
+
+## Contributing
+
+Direct pushes to `main` should be blocked — open a pull request.
