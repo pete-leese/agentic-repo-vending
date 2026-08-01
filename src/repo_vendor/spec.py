@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import yaml
@@ -21,6 +22,7 @@ from repo_vendor.naming import (
 )
 from repo_vendor.prompts import find_repo_root
 
+logger = logging.getLogger(__name__)
 _MAX_DESC_CHARS = 1200
 
 
@@ -115,6 +117,51 @@ def format_spec_pr_title(spec: SpecRequest) -> str:
     """Human-readable Spec PR title (what will be vended)."""
     name = (spec.proposed_name or "").strip() or "unnamed"
     return f"Propose `{name}` ({spec.issue_key})"
+
+
+def load_specs_from_requests_dir(root: Path | None = None) -> list[SpecRequest]:
+    """Load Spec Requests from ``requests/*.yaml`` under the control-plane checkout."""
+    base = (root or find_repo_root()) / "requests"
+    if not base.is_dir():
+        return []
+    specs: list[SpecRequest] = []
+    for path in sorted(base.glob("*.yaml")):
+        if path.name.upper() == "README.YAML":
+            continue
+        try:
+            specs.append(spec_from_yaml(path.read_text(encoding="utf-8")))
+        except Exception as exc:  # noqa: BLE001
+            # Skip unreadable / invalid Specs; do not block propose on one bad file.
+            logger.warning("Skipping Spec %s: %s", path, exc)
+    return specs
+
+
+def find_duplicate_proposed_name(
+    proposed_name: str,
+    *,
+    issue_key: str,
+    specs: list[SpecRequest],
+) -> SpecRequest | None:
+    """Return another Spec that already claims ``proposed_name`` (case/kebab-normalized).
+
+    The same ``issue_key`` is ignored so re-propose of the same ticket is allowed.
+    """
+    target = to_kebab(proposed_name)
+    if not target:
+        return None
+    self_key = issue_key.strip().upper()
+    for spec in specs:
+        other_key = (spec.issue_key or "").strip().upper()
+        if not other_key or other_key == self_key:
+            continue
+        other_name = to_kebab(spec.proposed_name) if spec.proposed_name else ""
+        if other_name and other_name == target:
+            return spec
+        # Also catch intent.proposed_name when top-level was polluted historically.
+        intent_name = (spec.intent or {}).get("proposed_name")
+        if intent_name and to_kebab(str(intent_name)) == target:
+            return spec
+    return None
 
 
 def format_spec_pr_body(

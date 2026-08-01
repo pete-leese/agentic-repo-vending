@@ -4,7 +4,7 @@ Single source of truth for humans and the Cursor Automation. Board URLs, approva
 
 ## Two-phase HITL
 
-1. **Propose** — Issue **created** in **New Request** → agent runs evals → Jira proposal comment. On pass, opens PR `requests/<ISSUE-KEY>.yaml`.
+1. **Propose** — Issue **created** in **New Request** → agent runs evals → Jira proposal comment. On pass, opens PR `requests/<ISSUE-KEY>.yaml`. Proposed names must be **unique** across Spec Requests under `requests/` (and must not collide with an existing GitHub repo of the same name); duplicates fail propose with an explicit comment.
 2. **Re-propose (more context)** — While still **New Request** and **not** `repo-vended`, editing **summary/description** or adding a helper label (`platform-*` / `tf-*` / `type-*`) re-triggers `action: propose`. Outcome labels (`repo-vend-*`) do **not** re-trigger.
 3. **Approve** — Human replies with a Keyword Approval phrase (from `repo-vend.yaml` → `jira.approval.keywords`) **after** `repo-vend-proposed` is present → agent merges Spec PR → create-from-template. The approve Automation must **not** run on issue create.
 4. **No rename after create** — Wrong name: edit the ticket and re-propose before approve, or open a new request.
@@ -88,7 +88,7 @@ After create-from-template, the vendor **rewrites `README.md`** on the new repo 
 
 ## Spec Request (SDD)
 
-Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propose; **vend reads this file**, not a fresh ticket extract. Re-propose updates the Spec PR from the latest ticket.
+Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propose; **vend reads this file**, not a fresh ticket extract. Re-propose updates the Spec PR from the latest ticket. **Propose** rejects a name already claimed by another Spec under `requests/` (or an existing GitHub repo of that name).
 
 ## Eval policy
 
