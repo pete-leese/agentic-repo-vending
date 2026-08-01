@@ -91,11 +91,7 @@ def clean_purpose_slug(value: str | None) -> str | None:
     """Kebab-ize and drop conversational filler tokens from a purpose slug."""
     if not value:
         return None
-    parts = [
-        p
-        for p in to_kebab(value).split("-")
-        if p and p not in _PURPOSE_STOPWORDS
-    ]
+    parts = [p for p in to_kebab(value).split("-") if p and p not in _PURPOSE_STOPWORDS]
     return "-".join(parts) or None
 
 
@@ -151,7 +147,10 @@ def build_proposed_name(intent: ExtractedIntent) -> str | None:
     Purpose prefers a canonical ``proposed_name`` match over a polluted
     ``purpose`` field (e.g. ``give-me-gke`` from "give me a … GKE module").
     """
-    if intent.project_type == ProjectType.TERRAFORM and intent.terraform_shape == TerraformShape.MODULE:
+    if (
+        intent.project_type == ProjectType.TERRAFORM
+        and intent.terraform_shape == TerraformShape.MODULE
+    ):
         purpose = _module_purpose_slug(intent)
         if not purpose or not intent.platform:
             return None
@@ -282,7 +281,9 @@ def enrich_intent_type_and_shape(
         if not intent.purpose:
             intent.purpose = m.group("name")
         intent.missing_info = [
-            m_ for m_ in intent.missing_info if "platform" not in m_.lower() and "shape" not in m_.lower()
+            m_
+            for m_ in intent.missing_info
+            if "platform" not in m_.lower() and "shape" not in m_.lower()
         ]
         return intent
     if proposed and TF_ROOT.fullmatch(proposed):
@@ -302,11 +303,13 @@ def enrich_intent_type_and_shape(
                 m_ for m_ in intent.missing_info if "project type" not in m_.lower()
             ]
 
-    if intent.project_type == ProjectType.TERRAFORM and intent.terraform_shape is None and has_module:
+    if (
+        intent.project_type == ProjectType.TERRAFORM
+        and intent.terraform_shape is None
+        and has_module
+    ):
         intent.terraform_shape = TerraformShape.MODULE
-        intent.missing_info = [
-            m_ for m_ in intent.missing_info if "shape" not in m_.lower()
-        ]
+        intent.missing_info = [m_ for m_ in intent.missing_info if "shape" not in m_.lower()]
 
     return intent
 
@@ -340,9 +343,7 @@ def validate_name_and_template(
     errors: list[str] = []
     # If a typed name is already present, prefer that type over default generic
     if intent.proposed_name:
-        enrich_intent_type_and_shape(
-            intent, summary="", description="", labels=[]
-        )
+        enrich_intent_type_and_shape(intent, summary="", description="", labels=[])
     intent = _apply_default_type(intent, settings)
 
     # Re-coerce if default generic conflicts with a terraform-module-* name
@@ -494,9 +495,11 @@ def infer_intent_from_labels_and_text(
     if "type-terraform" in labels_l or "terraform" in blob:
         project_type = ProjectType.TERRAFORM
     # "EC2 module repo for aws" — infra module without saying terraform
-    if project_type is None and (
-        "tf-module" in labels_l or re.search(r"\bmodule\b", blob)
-    ) and infer_platform_from_text(blob) is not None:
+    if (
+        project_type is None
+        and ("tf-module" in labels_l or re.search(r"\bmodule\b", blob))
+        and infer_platform_from_text(blob) is not None
+    ):
         project_type = ProjectType.TERRAFORM
     if "type-python" in labels_l or re.search(r"\bpython\b", blob):
         if "type-python" in labels_l:
@@ -506,7 +509,11 @@ def infer_intent_from_labels_and_text(
         elif "type-terraform" in labels_l:
             project_type = ProjectType.TERRAFORM
     if "type-generic" in labels_l or re.search(r"\bgeneric\b", blob):
-        if "type-generic" in labels_l and "type-terraform" not in labels_l and "type-python" not in labels_l:
+        if (
+            "type-generic" in labels_l
+            and "type-terraform" not in labels_l
+            and "type-python" not in labels_l
+        ):
             project_type = ProjectType.GENERIC
 
     shape: TerraformShape | None = None
@@ -546,7 +553,11 @@ def infer_intent_from_labels_and_text(
     # Leave project_type None so validate can apply default_project_type from config
     if project_type == ProjectType.TERRAFORM and shape is None:
         missing.append("terraform shape (module or root)")
-    if project_type == ProjectType.TERRAFORM and shape == TerraformShape.MODULE and platform is None:
+    if (
+        project_type == ProjectType.TERRAFORM
+        and shape == TerraformShape.MODULE
+        and platform is None
+    ):
         missing.append("platform (aws, gcp, or azure)")
     if not purpose and not proposed:
         missing.append("purpose / proposed repo name")

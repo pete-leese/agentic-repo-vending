@@ -13,9 +13,7 @@ def test_normalize_and_resolve_agent():
         == "bc-11111111-2222-3333-4444-555555555555"
     )
     assert normalize_cursor_agent_id("not-an-id") is None
-    aid, url = resolve_cursor_agent(
-        agent_id="bc-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-    )
+    aid, url = resolve_cursor_agent(agent_id="bc-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
     assert aid.startswith("bc-")
     assert url == f"https://cursor.com/agents/{aid}"
     aid2, _ = resolve_cursor_agent(
@@ -41,9 +39,7 @@ def test_proposal_comment_includes_confidence_and_agent_link():
     assert "**Confidence:** `0.86`" in md
     assert "Cursor agent" in md
     assert "https://cursor.com/agents/bc-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" in md
-    assert format_cursor_agent_line(
-        agent_id="bc-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-    ) in md
+    assert format_cursor_agent_line(agent_id="bc-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee") in md
 
 
 def test_failure_and_success_comments_include_agent():

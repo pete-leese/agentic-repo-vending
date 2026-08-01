@@ -110,9 +110,7 @@ def test_propose_pass_includes_cursor_agent_link():
     agent = "bc-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
     with patch("repo_vendor.workflow.GitHubClient", return_value=github):
-        result = propose_issue(
-            issue, settings=settings, cursor_agent_id=agent
-        )
+        result = propose_issue(issue, settings=settings, cursor_agent_id=agent)
 
     assert result.success is True
     assert result.cursor_agent_id == agent
@@ -153,6 +151,7 @@ def test_vend_uses_intent_proposed_name_when_top_level_polluted():
         full_name="example/terraform-module-gke-gcp",
     )
     github.protect_main.return_value = True
+    github.wait_for_branch.return_value = True
     github.write_vended_readme.return_value = True
 
     with patch("repo_vendor.workflow.GitHubClient", return_value=github):
@@ -162,6 +161,9 @@ def test_vend_uses_intent_proposed_name_when_top_level_polluted():
     assert result.repo_name == "terraform-module-gke-gcp"
     github.create_from_template.assert_called_once()
     assert github.create_from_template.call_args.kwargs["name"] == "terraform-module-gke-gcp"
+    # README before classic protection (enforce_admins would block a later push).
+    names = [c[0] for c in github.method_calls]
+    assert names.index("write_vended_readme") < names.index("protect_main")
 
 
 def test_vend_from_spec_success_warning_on_protect():
@@ -192,6 +194,7 @@ def test_vend_from_spec_success_warning_on_protect():
         full_name="example/python-metrics-helper",
     )
     github.protect_main.return_value = False
+    github.wait_for_branch.return_value = True
     github.write_vended_readme.return_value = True
 
     with patch("repo_vendor.workflow.GitHubClient", return_value=github):

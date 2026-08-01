@@ -1,5 +1,9 @@
 from repo_vendor.models import SpecEvals, SpecRequest
-from repo_vendor.spec import format_spec_pr_body, format_spec_pr_title, resolve_create_name_from_spec
+from repo_vendor.spec import (
+    format_spec_pr_body,
+    format_spec_pr_title,
+    resolve_create_name_from_spec,
+)
 
 
 def _spec(**kwargs) -> SpecRequest:
@@ -27,10 +31,7 @@ def _spec(**kwargs) -> SpecRequest:
 
 
 def test_format_spec_pr_title():
-    assert (
-        format_spec_pr_title(_spec())
-        == "Propose `terraform-module-s3-aws` (REPO-14)"
-    )
+    assert format_spec_pr_title(_spec()) == "Propose `terraform-module-s3-aws` (REPO-14)"
 
 
 def test_format_spec_pr_body_includes_proposal_details():

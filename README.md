@@ -88,19 +88,29 @@ sequenceDiagram
 - [Post-MVP](docs/post-mvp.md)
 - [Domain glossary](CONTEXT.md)
 - [ADRs](docs/adr/)
+- [Conventions](docs/conventions/)
+- [Contributing](CONTRIBUTING.md)
+- [SECURITY](SECURITY.md)
 
 ## Local development
 
+Requires [uv](https://docs.astral.sh/uv/).
+
 ```bash
-pip install -e '.[dev,cursor]'
-pytest
-python -m repo_vendor doctor
+make sync          # uv sync --group dev --extra cursor
+make ci            # ruff + mypy (critical path) + pytest + coverage
+make doctor
 echo '{"key":"REPO-1","summary":"python logging helper","description":"...","status":"New Request","labels":["type-python"]}' \
-  | python -m repo_vendor propose --json --dry-run
+  | uv run python -m repo_vendor propose --json --dry-run
 ```
+
+Optional: `make hooks` installs pre-commit (ruff on commit, pytest on push).
+
+Conventions: [style](docs/conventions/style.md) · [testing](docs/conventions/testing.md) · [PRs](docs/conventions/pr.md) · [SECURITY](SECURITY.md)
 
 ## Secrets (Cloud Agent — never commit)
 
 - `CURSOR_API_KEY`
-- `GITHUB_TOKEN` — classic `repo` (Spec PRs + template generate)
+- `GITHUB_TOKEN` — classic `repo` (Spec PRs + template generate + classic branch protection). Fine-grained tokens need **Administration: Read and write**.
 - Jira: **Atlassian Automation tool**
+- See [SECURITY.md](SECURITY.md)

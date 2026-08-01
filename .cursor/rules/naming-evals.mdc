@@ -1,0 +1,16 @@
+---
+description: Naming, dual-model evals, and Spec Request naming SoR — cite rules/naming.md
+globs: rules/naming.md,src/repo_vendor/naming.py,src/repo_vendor/workflow.py,src/repo_vendor/spec.py,evals/**/*.json,requests/**/*.yaml,repo-vend.yaml
+alwaysApply: false
+---
+
+# Naming + evals
+
+**Source of truth:** [`rules/naming.md`](../../rules/naming.md), [`repo-vend.yaml`](../../repo-vend.yaml), ADRs under `docs/adr/`.
+
+- Prefer `intent.proposed_name` over polluted top-level purpose when resolving create name.
+- Strip filler tokens (`give`, `me`, …) before kebab naming.
+- Eval prompts: `evals/extract-intent.json`, `evals/judge-naming.json` — orchestrator ≠ judge model.
+- Spec Request YAML under `requests/` is SoR after Keyword Approval; vend merges then create-from-template.
+- Vended README substitutes `{{REPO_NAME}}` etc.; preserve `BEGIN_TF_DOCS` / `END_TF_DOCS` markers.
+- Customize via `docs/customizing.md` — do not hardcode board URLs or keywords in code.

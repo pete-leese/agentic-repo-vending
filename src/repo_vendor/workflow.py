@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from repo_vendor.approval import is_approval_comment
 from repo_vendor.config import Settings, get_settings
+from repo_vendor.cursor_run import format_cursor_agent_line, resolve_cursor_agent
 from repo_vendor.github_client import GitHubClient
 from repo_vendor.harness import (
     derive_confidence,
@@ -28,7 +30,6 @@ from repo_vendor.naming import (
     to_kebab,
     validate_name_and_template,
 )
-from repo_vendor.cursor_run import format_cursor_agent_line, resolve_cursor_agent
 from repo_vendor.observability import record_eval, record_vend, span
 from repo_vendor.readme_gen import resolve_vended_readme
 from repo_vendor.spec import (
@@ -61,9 +62,7 @@ def _meta_lines(
     lines: list[str] = []
     if confidence is not None:
         lines.append(f"- **Confidence:** `{confidence:.2f}`")
-    agent_line = format_cursor_agent_line(
-        agent_id=cursor_agent_id, agent_url=cursor_agent_url
-    )
+    agent_line = format_cursor_agent_line(agent_id=cursor_agent_id, agent_url=cursor_agent_url)
     if agent_line:
         lines.append(agent_line)
     return lines
@@ -179,11 +178,13 @@ def _success_markdown(
     cursor_agent_url: str | None = None,
 ) -> str:
     guardrail = (
-        "Direct pushes to `main` are blocked (PR required)."
+        "Classic branch protection on `main` is enabled (PR + 1 review required; admins enforced)."
         if main_protected
         else (
-            "Branch protection on `main` could **not** be applied — "
-            "please configure it manually (PR required). "
+            "Classic branch protection on `main` could **not** be applied — "
+            "configure **Settings → Branches → Add classic branch protection rule** "
+            "(not rulesets) for `main`, or ensure `GITHUB_TOKEN` has admin "
+            "(classic `repo` / fine-grained Administration: write). "
             "Outcome label: `repo-vend-warning`."
         )
     )
@@ -440,9 +441,7 @@ def propose_issue(
                     path=path,
                     content=spec_to_yaml(spec),
                     title=format_spec_pr_title(spec),
-                    body=format_spec_pr_body(
-                        spec, jira_base_url=settings.jira_base_url
-                    ),
+                    body=format_spec_pr_body(spec, jira_base_url=settings.jira_base_url),
                 )
                 pr_url = pr.html_url
                 spec.pr_url = pr_url
@@ -602,12 +601,17 @@ def vend_issue(
                         jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
                     )
 
-                main_protected = github.protect_main(created.name)
+                # Template generate is async — wait for main before mutating it.
+                if not github.wait_for_branch(created.name, "main"):
+                    logger.warning(
+                        "main not ready after template generate for %s; continuing",
+                        created.name,
+                    )
+                # README must be written *before* classic protection with
+                # enforce_admins=true (otherwise the bot cannot push to main).
                 template_readme: str | None = None
                 try:
-                    template_readme = github.get_file_text(
-                        "README.md", repo=created.name
-                    )
+                    template_readme = github.get_file_text("README.md", repo=created.name)
                 except FileNotFoundError:
                     template_readme = None
                 readme = resolve_vended_readme(
@@ -623,6 +627,8 @@ def vend_issue(
                     repo_name=created.name,
                     content=readme,
                 )
+                # Classic branch protection (PUT .../branches/main/protection), not rulesets.
+                main_protected = github.protect_main(created.name)
         except FileNotFoundError:
             msg = (
                 f"Spec Request `{path}` not found on the control-plane repo. "
@@ -650,7 +656,9 @@ def vend_issue(
                 jira=_error_plan(settings, f"## Vend failed\n\n{msg}"),
             )
 
-        outcome = "success" if main_protected and readme_ok else "warning"
+        outcome: Literal["success", "warning"] = (
+            "success" if main_protected and readme_ok else "warning"
+        )
         markdown = _success_markdown(
             created.name,
             created.html_url,

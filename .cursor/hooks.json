@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "bash ./.cursor/hooks/security_hook.sh",
+        "timeout": 10,
+        "failClosed": false
+      },
+      {
+        "command": "bash ./.cursor/hooks/lint_hook.sh",
+        "matcher": "git commit|git push",
+        "timeout": 120
+      },
+      {
+        "command": "bash ./.cursor/hooks/unit_test_hook.sh",
+        "matcher": "git commit|git push",
+        "timeout": 180
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "bash ./.cursor/hooks/security_hook.sh --tool-edit",
+        "matcher": "Write|Delete",
+        "timeout": 5,
+        "failClosed": false
+      }
+    ]
+  }
+}

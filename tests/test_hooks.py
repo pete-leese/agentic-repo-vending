@@ -1,6 +1,11 @@
-from repo_vendor.observability import LoggingMetricsSink, MetricEvent, get_metrics_sink, set_metrics_sink
-from repo_vendor.harness import HeuristicHarness, get_harness
 from repo_vendor.config import Settings
+from repo_vendor.harness import HeuristicHarness, get_harness
+from repo_vendor.observability import (
+    LoggingMetricsSink,
+    MetricEvent,
+    get_metrics_sink,
+    set_metrics_sink,
+)
 
 
 def test_metrics_sink_default():

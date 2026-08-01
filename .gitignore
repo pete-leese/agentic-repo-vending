@@ -5,7 +5,10 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 .coverage
+htmlcov/
+coverage.xml
 dist/
 build/
 .DS_Store

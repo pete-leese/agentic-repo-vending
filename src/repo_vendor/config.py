@@ -61,8 +61,7 @@ def _yaml_field_map() -> dict[str, Any]:
         or "generic",
         "orchestrator_model": cfg_str(data, "models", "orchestrator", default="claude-sonnet-5")
         or "claude-sonnet-5",
-        "eval_model": cfg_str(data, "models", "eval", default="composer-2.5")
-        or "composer-2.5",
+        "eval_model": cfg_str(data, "models", "eval", default="composer-2.5") or "composer-2.5",
     }
     return {k: v for k, v in out.items() if v not in (None, "")}
 

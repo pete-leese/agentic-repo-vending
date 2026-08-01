@@ -132,15 +132,13 @@ def format_spec_pr_body(
 
     base = (jira_base_url or "").rstrip("/")
     issue_ref = (
-        f"[{spec.issue_key}]({base}/browse/{spec.issue_key})"
-        if base
-        else f"`{spec.issue_key}`"
+        f"[{spec.issue_key}]({base}/browse/{spec.issue_key})" if base else f"`{spec.issue_key}`"
     )
 
     summary = (spec.summary or "").strip() or "(none)"
     description = (spec.description or "").strip() or "(no description)"
     if len(description) > _MAX_DESC_CHARS:
-        description = description[: _MAX_DESC_CHARS].rstrip() + "\n\n_(truncated)_"
+        description = description[:_MAX_DESC_CHARS].rstrip() + "\n\n_(truncated)_"
 
     llm = "pass" if spec.evals.llm_passed else "fail"
     det = "pass" if spec.evals.deterministic_passed else "fail"
@@ -180,9 +178,7 @@ def format_spec_pr_body(
         ]
     )
     if spec.evals.reasons:
-        lines.extend(
-            ["", "### Eval reasons", *[f"- {r}" for r in spec.evals.reasons]]
-        )
+        lines.extend(["", "### Eval reasons", *[f"- {r}" for r in spec.evals.reasons]])
     if spec.evals.missing_info:
         lines.extend(
             [

@@ -1,0 +1,15 @@
+---
+description: Core repo-vend HITL and I/O invariants (thin; details in rules/ and docs/)
+alwaysApply: true
+---
+
+# Repo vend — core invariants
+
+Follow [`rules/naming.md`](../../rules/naming.md) and [`repo-vend.yaml`](../../repo-vend.yaml). Conventions: [`docs/conventions/`](../../docs/conventions/).
+
+1. Flow: **propose** → Keyword Approval → **vend** from `requests/<KEY>.yaml`. No post-create rename.
+2. Jira board I/O: **Atlassian** tools only — never call Jira REST from the CLI.
+3. Do not invent naming/HITL behavior; read the naming rule and config first.
+4. Never commit `.env`, API keys, or real webhook Bearer tokens.
+5. Webhook Bearer ≠ global `CURSOR_API_KEY`.
+6. CI (`make ci`) is the hard gate; Cursor hooks move feedback earlier.

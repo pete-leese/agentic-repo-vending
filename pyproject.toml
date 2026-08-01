@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Agentic repo vending workflow: Jira → evals → GitHub create-from-template"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
 dependencies = [
   "pydantic>=2.10",
   "pydantic-ai>=0.0.50",
@@ -21,7 +22,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.3",
+  "pytest-cov>=7.0",
   "ruff>=0.8",
+  "mypy>=1.14",
+  "types-PyYAML>=6.0",
+  "pre-commit>=4.0",
 ]
 cursor = [
   "cursor-sdk>=0.1.0",
@@ -29,6 +34,16 @@ cursor = [
 
 [project.scripts]
 repo-vendor = "repo_vendor.cli:app"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=7.0",
+  "ruff>=0.8",
+  "mypy>=1.14",
+  "types-PyYAML>=6.0",
+  "pre-commit>=4.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/repo_vendor"]
@@ -42,6 +57,21 @@ packages = ["src/repo_vendor"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = [
+  "--cov=repo_vendor.naming",
+  "--cov=repo_vendor.workflow",
+  "--cov=repo_vendor.spec",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-fail-under=70",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["repo_vendor"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 line-length = 100
@@ -49,3 +79,20 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["repo_vendor"]
+mypy_path = "src"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+# Gradual: critical path first (CI runs mypy on these modules explicitly).
+files = [
+  "src/repo_vendor/naming.py",
+  "src/repo_vendor/spec.py",
+  "src/repo_vendor/workflow.py",
+]
