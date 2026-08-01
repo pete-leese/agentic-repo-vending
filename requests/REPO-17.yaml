@@ -1,0 +1,32 @@
+issue_key: REPO-17
+summary: give me a repo for my project "invoice-services"
+description: ''
+intent:
+  project_type: generic
+  terraform_shape: null
+  platform: null
+  purpose: invoice-services
+  proposed_name: invoice-services
+  confidence: 0.85
+  missing_info: []
+  notes: Bare word 'project' does not imply terraform (per naming.md fallback rule);
+    no infra/cloud/python signals present, so type defaults to generic. Explicit name
+    'invoice-services' is already plain kebab-case, matching the generic naming pattern
+    (no terraform-/python- prefix, no platform required).
+proposed_name: invoice-services
+template: template-generic-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Bare word 'project' does not imply Terraform; no infra, cloud, module, or Python
+    signals in the request.
+  - 'Generic fallback applies: plain kebab-case name without terraform- or python-
+    prefix.'
+  - proposed_name 'invoice-services' matches the generic naming pattern (purpose as
+    kebab-case slug).
+  - Generic projects use template-generic-repo; no platform suffix is required.
+  - "Deterministic gate locked `invoice-services` \u2192 `template-generic-repo` (type=generic)."
+  missing_info: []
+status: proposed
+pr_url: null
