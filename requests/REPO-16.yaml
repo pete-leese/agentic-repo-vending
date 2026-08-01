@@ -1,0 +1,29 @@
+issue_key: REPO-16
+summary: give me a repo for my project "invoices-service"
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: root
+  platform: null
+  purpose: invoices-service
+  proposed_name: terraform-invoices-service
+  confidence: 1.0
+  missing_info: []
+  notes: llm_extract
+proposed_name: terraform-invoices-service
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket requests a repo for project 'invoices-service' with no Terraform, Python,
+    or cloud/infra indicators.
+  - Extracted intent classified as terraform/root (confidence 0.0) but 'invoices-service'
+    is a generic service name, not infra phrasing or a module request.
+  - Per fallback rules, unclear non-infra/non-python requests use generic naming (plain
+    kebab-case) and template-generic-repo.
+  - Proposed name 'invoices-service' is valid plain kebab-case; no platform suffix
+    required for generic repos.
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/19
