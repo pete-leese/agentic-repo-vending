@@ -30,7 +30,7 @@ from repo_vendor.naming import (
 )
 from repo_vendor.cursor_run import format_cursor_agent_line, resolve_cursor_agent
 from repo_vendor.observability import record_eval, record_vend, span
-from repo_vendor.readme_gen import build_vended_readme
+from repo_vendor.readme_gen import resolve_vended_readme
 from repo_vendor.spec import (
     format_spec_pr_body,
     format_spec_pr_title,
@@ -603,7 +603,15 @@ def vend_issue(
                     )
 
                 main_protected = github.protect_main(created.name)
-                readme = build_vended_readme(
+                template_readme: str | None = None
+                try:
+                    template_readme = github.get_file_text(
+                        "README.md", repo=created.name
+                    )
+                except FileNotFoundError:
+                    template_readme = None
+                readme = resolve_vended_readme(
+                    template_readme,
                     repo_name=created.name,
                     summary=spec.summary,
                     description=spec.description,

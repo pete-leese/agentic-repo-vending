@@ -15,15 +15,12 @@ jobs:
           terraform_version: 1.9.0
       - name: Terraform fmt
         run: terraform fmt -check -recursive
-      - name: Terraform init (modules/example)
-        working-directory: modules/example
+      - name: Terraform init
         run: terraform init -backend=false
       - name: Terraform validate
-        working-directory: modules/example
         run: terraform validate
       - uses: terraform-linters/setup-tflint@v4
       - name: TFLint
-        working-directory: modules/example
         run: |
           tflint --init
           tflint

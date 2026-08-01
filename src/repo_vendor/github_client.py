@@ -338,11 +338,18 @@ class GitHubClient:
             head_ref=str(data.get("head", {}).get("ref") or ""),
         )
 
-    def get_file_text(self, path: str, *, ref: str | None = None) -> str:
+    def get_file_text(
+        self,
+        path: str,
+        *,
+        ref: str | None = None,
+        repo: str | None = None,
+    ) -> str:
+        full = f"{self.settings.github_owner}/{repo}" if repo else self._control
         if self.settings.dry_run:
             raise FileNotFoundError(f"DRY_RUN: no remote file {path}")
         params = {"ref": ref} if ref else None
-        r = self._client.get(f"/repos/{self._control}/contents/{path}", params=params)
+        r = self._client.get(f"/repos/{full}/contents/{path}", params=params)
         if r.status_code == 404:
             raise FileNotFoundError(path)
         r.raise_for_status()
