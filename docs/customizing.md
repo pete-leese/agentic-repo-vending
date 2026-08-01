@@ -57,7 +57,9 @@ Templates are public GitHub **template repositories** under `github.owner`:
 
 1. Publish or fork a template repo and mark it as a GitHub template.
 2. Set e.g. `github.templates.python: my-company-python-template` in `repo-vend.yaml`.
-3. Ensure `GITHUB_TOKEN` can `generate` from that template.
+3. Ensure `GITHUB_TOKEN` can `generate` from that template and apply **classic** branch protection
+   (`PUT .../branches/main/protection` — not rulesets). Classic PAT needs `repo`; fine-grained needs
+   Administration: Read and write.
 4. Update [`rules/naming.md`](../rules/naming.md) and [`evals/judge-naming.json`](../evals/judge-naming.json) `allowed_templates` so the judge allow-list matches.
 
 ### Add a new type (advanced)

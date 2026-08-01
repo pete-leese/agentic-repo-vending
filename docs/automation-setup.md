@@ -108,7 +108,7 @@ See [getting-started.md](getting-started.md) §6 and [jira-setup.md](jira-setup.
 
 | Secret | Purpose |
 |--------|---------|
-| `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
+| `GITHUB_TOKEN` | Spec PRs + create-from-template + classic branch protection (classic `repo` / fine-grained Administration: write) |
 | `CURSOR_API_KEY` | SDK evals (`claude-sonnet-5` extract + `composer-2.5` judge per `repo-vend.yaml`) |
 
 Jira access: **Atlassian Automation tool** only.

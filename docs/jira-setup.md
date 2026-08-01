@@ -24,7 +24,7 @@ flowchart LR
 
 ## Shared prerequisites
 
-1. Cloud Agent secrets: `CURSOR_API_KEY`, `GITHUB_TOKEN` (classic `repo` recommended; must open/merge PRs on the control-plane repo)
+1. Cloud Agent secrets: `CURSOR_API_KEY`, `GITHUB_TOKEN` (classic `repo` recommended — must open/merge Spec PRs, generate from templates, and apply **classic** branch protection; fine-grained needs Administration: write)
 2. Labels: `repo-vend-proposed`, `repo-vended`, `repo-vend-success` | `repo-vend-warning` | `repo-vend-error`
 3. Template repos published
 4. **Atlassian** tool enabled on the Cursor Automation

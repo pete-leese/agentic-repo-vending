@@ -1,4 +1,4 @@
 {
-  "install": "python3 -m pip install -U pip && python3 -m pip install -e '.[dev,cursor]' || python3 -m pip install -e '.[dev]'",
+  "install": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && uv sync --group dev --extra cursor || uv sync --group dev",
   "terminals": []
 }

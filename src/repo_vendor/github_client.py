@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -62,7 +63,9 @@ class GitHubClient:
         r.raise_for_status()
         return True
 
-    def create_from_template(self, *, template: str, name: str, description: str = "") -> CreatedRepo:
+    def create_from_template(
+        self, *, template: str, name: str, description: str = ""
+    ) -> CreatedRepo:
         if self.settings.dry_run:
             url = f"https://github.com/{self.settings.github_owner}/{name}"
             logger.info("DRY_RUN create from %s -> %s", template, url)
@@ -91,36 +94,109 @@ class GitHubClient:
             full_name=data["full_name"],
         )
 
-    def protect_main(self, name: str) -> bool:
-        """Enforce no direct pushes to main (PR required). Returns True if applied."""
+    def wait_for_branch(
+        self,
+        name: str,
+        branch: str = "main",
+        *,
+        attempts: int = 15,
+        delay_s: float = 2.0,
+    ) -> bool:
+        """Poll until a branch exists (template generate is async)."""
         if self.settings.dry_run:
-            logger.info("DRY_RUN branch protection main on %s", name)
+            logger.info("DRY_RUN wait for %s@%s", name, branch)
             return True
+        path = f"/repos/{self.settings.github_owner}/{name}/branches/{branch}"
+        for i in range(attempts):
+            r = self._client.get(path)
+            if r.status_code == 200:
+                return True
+            if r.status_code not in (404, 409, 502, 503):
+                logger.warning(
+                    "Unexpected status waiting for %s@%s: %s %s",
+                    name,
+                    branch,
+                    r.status_code,
+                    r.text[:500],
+                )
+            if i + 1 < attempts:
+                time.sleep(delay_s)
+        logger.warning("Timed out waiting for branch %s on %s", branch, name)
+        return False
+
+    def protect_main(self, name: str, *, branch: str = "main") -> bool:
+        """Apply classic branch protection (not repository rulesets).
+
+        Endpoint: PUT /repos/{owner}/{repo}/branches/{branch}/protection
+
+        Requires admin on the repo (classic PAT ``repo``, or fine-grained
+        Administration: Read and write). Returns True if applied.
+        """
+        if self.settings.dry_run:
+            logger.info("DRY_RUN classic branch protection on %s@%s", name, branch)
+            return True
+
+        if not self.wait_for_branch(name, branch):
+            logger.warning(
+                "Cannot apply classic branch protection: %s/%s branch %s not ready",
+                self.settings.github_owner,
+                name,
+                branch,
+            )
+            return False
+
+        # Classic protection for public user- or org-owned repos.
+        # Omit dismissal_restrictions (org-only); restrictions must be null on user repos.
         payload = {
             "required_status_checks": None,
             "enforce_admins": True,
             "required_pull_request_reviews": {
                 "required_approving_review_count": 1,
                 "dismiss_stale_reviews": True,
+                "require_code_owner_reviews": False,
             },
             "restrictions": None,
+            "required_linear_history": False,
             "allow_force_pushes": False,
             "allow_deletions": False,
+            "block_creations": False,
         }
-        r = self._client.put(
-            f"/repos/{self.settings.github_owner}/{name}/branches/main/protection",
-            json=payload,
+        url = f"/repos/{self.settings.github_owner}/{name}/branches/{branch}/protection"
+        # luke-cage-preview historically required for required_approving_review_count.
+        headers = {
+            "Accept": (
+                "application/vnd.github+json, application/vnd.github.luke-cage-preview+json"
+            ),
+        }
+
+        last_status = 0
+        last_body = ""
+        for i in range(5):
+            r = self._client.put(url, json=payload, headers=headers)
+            last_status = r.status_code
+            last_body = r.text
+            if r.status_code < 400:
+                logger.info(
+                    "Applied classic branch protection on %s/%s@%s",
+                    self.settings.github_owner,
+                    name,
+                    branch,
+                )
+                return True
+            if r.status_code in (404, 409, 502, 503) and i + 1 < 5:
+                time.sleep(2.0)
+                continue
+            break
+
+        logger.warning(
+            "Classic branch protection failed on %s/%s@%s: %s %s",
+            self.settings.github_owner,
+            name,
+            branch,
+            last_status,
+            last_body[:800],
         )
-        if r.status_code >= 400:
-            logger.warning(
-                "Could not set branch protection on %s: %s %s",
-                name,
-                r.status_code,
-                r.text,
-            )
-            return False
-        r.raise_for_status()
-        return True
+        return False
 
     def ensure_template_flag(self, name: str) -> None:
         if self.settings.dry_run:
@@ -229,9 +305,7 @@ class GitHubClient:
             # PR may already exist for this head — refresh title/body on re-propose
             existing = self.find_open_pr(head_ref=head)
             if existing:
-                return self.update_pull_request(
-                    existing.number, title=title, body=body
-                )
+                return self.update_pull_request(existing.number, title=title, body=body)
         r.raise_for_status()
         data = r.json()
         return PullRequestInfo(

@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 import uuid
 from pathlib import Path
 
@@ -30,9 +29,7 @@ DEFAULT_TEMPLATE = ROOT / "docs" / "jira" / "automation-rules-two-phase.json"
 DEFAULT_OUT = ROOT / "docs" / "jira" / "automation-rules-import.json"
 CONFIG_PATH = ROOT / "repo-vend.yaml"
 AUTH_PLACEHOLDER = "Bearer REPLACE_WITH_CURSOR_WEBHOOK_API_KEY"
-WEBHOOK_URL_RE = re.compile(
-    r"^https://api2\.cursor\.sh/automations/webhook/[0-9a-fA-F-]{20,}$"
-)
+WEBHOOK_URL_RE = re.compile(r"^https://api2\.cursor\.sh/automations/webhook/[0-9a-fA-F-]{20,}$")
 
 
 def _load_config() -> dict:
@@ -164,8 +161,7 @@ def _patch_from_config(data: dict, cfg: dict) -> None:
             # Keyword regex (approve rule only — do not overwrite label-retrigger regex)
             if (
                 cond.get("type") == "jira.comparator.condition"
-                and value.get("operator")
-                in {"REGEX_MATCHES", "REGEX_CONTAINS", "CONTAINS_REGEX"}
+                and value.get("operator") in {"REGEX_MATCHES", "REGEX_CONTAINS", "CONTAINS_REGEX"}
                 and (
                     "comment.body" in str(value.get("first") or "")
                     or "comments.last.body" in str(value.get("first") or "")
@@ -195,8 +191,7 @@ def generate(webhook_url: str, *, template: Path, out: Path) -> dict:
     return {
         "out": str(out),
         "webhook_url": webhook_url,
-        "base_url": (cfg.get("jira") or {}).get("base_url")
-        or "https://YOUR.atlassian.net",
+        "base_url": (cfg.get("jira") or {}).get("base_url") or "https://YOUR.atlassian.net",
         "board_url": (cfg.get("jira") or {}).get("board_url") or "",
         "automation_settings_url": (
             f"{((cfg.get('jira') or {}).get('base_url') or 'https://YOUR.atlassian.net').rstrip('/')}"

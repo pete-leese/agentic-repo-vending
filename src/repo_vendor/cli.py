@@ -54,8 +54,7 @@ def _emit(result, *, as_json: bool) -> None:
         print(json.dumps(payload, indent=2))
     else:
         console.print(
-            f"[bold]phase={result.phase} outcome={result.outcome}[/bold] "
-            f"success={result.success}"
+            f"[bold]phase={result.phase} outcome={result.outcome}[/bold] success={result.success}"
         )
         console.print(result.message)
         console.print("Jira plan (apply with Atlassian tools):")
@@ -88,9 +87,7 @@ def propose(
     settings = _with_dry_run(dry_run)
     issue = _load_issue(issue_json, issue_file)
     console.print(f"[bold]Propose[/bold] issue={issue.key} dry_run={settings.dry_run}")
-    console.print(
-        f"models: orchestrator={settings.orchestrator_model} eval={settings.eval_model}"
-    )
+    console.print(f"models: orchestrator={settings.orchestrator_model} eval={settings.eval_model}")
     result = propose_issue(issue, settings, cursor_agent_id=cursor_agent_id)
     _emit(result, as_json=as_json)
     raise typer.Exit(0 if result.success else 1)
@@ -149,7 +146,9 @@ def doctor() -> None:
         "GITHUB_OWNER": s.github_owner,
         "CONTROL_PLANE_REPO": s.control_plane_repo,
         "JIRA_BOARD_URL": s.jira_board_url,
-        "TEMPLATES": f"tf={s.template_terraform} py={s.template_python} generic={s.template_generic}",
+        "TEMPLATES": (
+            f"tf={s.template_terraform} py={s.template_python} generic={s.template_generic}"
+        ),
         "DEFAULT_PROJECT_TYPE": s.default_project_type,
         "APPROVAL_KEYWORDS": ", ".join(s.approval_keywords),
         "ORCHESTRATOR_MODEL": s.orchestrator_model,

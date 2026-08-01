@@ -12,10 +12,12 @@
 ```bash
 git clone https://github.com/pete-leese/agentic-repo-vending.git
 cd agentic-repo-vending
-pip install -e '.[dev,cursor]'
+# https://docs.astral.sh/uv/
+make sync    # uv sync --group dev --extra cursor
+make doctor
 ```
 
-Cloud Agents use [`.cursor/environment.json`](../.cursor/environment.json) so `pip install -e '.[dev,cursor]'` runs on VM start.
+Cloud Agents use [`.cursor/environment.json`](../.cursor/environment.json) so **uv** syncs `dev` + `cursor` on VM start. Local gates: `make ci`.
 
 ## 2. Configure project + secrets
 
@@ -24,12 +26,12 @@ Edit [`repo-vend.yaml`](../repo-vend.yaml) for board URL, approval keywords, and
 | Secret | Purpose |
 |--------|---------|
 | `CURSOR_API_KEY` | Cursor SDK (`claude-sonnet-5` extract + `composer-2.5` judge; see `repo-vend.yaml`) |
-| `GITHUB_TOKEN` | Spec PRs on control plane + create-from-template (classic `repo`) |
+| `GITHUB_TOKEN` | Spec PRs + create-from-template + **classic** branch protection. Classic PAT: `repo`. Fine-grained: Contents + Pull requests + **Administration** (read/write). |
 
 Jira board I/O: **Atlassian** tool on the Cursor Automation (not Jira API tokens in the CLI).
 
 ```bash
-python -m repo_vendor doctor
+make doctor   # or: uv run python -m repo_vendor doctor
 ```
 
 ## 3. Publish GitHub templates
