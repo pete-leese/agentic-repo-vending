@@ -129,7 +129,7 @@
       "clientKey": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
       "name": "repo-vend-approve",
       "state": "DISABLED",
-      "description": "On Keyword Approval comment containing approved|lgtm|looks good|ship it|+1. REGEX_CONTAINS on comment.body.text + comment.body + last comment (nested replies). No lookbehind / word-boundary.",
+      "description": "On Keyword Approval comment (approved|lgtm|…) ONLY when labels include repo-vend-proposed and not repo-vended. Trigger is issue commented — never issue created. REGEX_CONTAINS on comment body smart values (nested replies).",
       "authorAccountId": "5f4622c1fdc3f5003ff4e536",
       "actor": {
         "type": "ACCOUNT_ID",
@@ -166,6 +166,33 @@
             "conditions": [],
             "children": [],
             "schemaVersion": 1,
+            "connectionId": null,
+            "checksum": null
+          },
+          {
+            "id": "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+            "parentId": null,
+            "conditionParentId": "28521f7f-e6d6-4cc7-a666-44062cce2db5",
+            "component": "CONDITION",
+            "type": "jira.issue.condition",
+            "value": {
+              "selectedField": {
+                "type": "ID",
+                "value": "labels"
+              },
+              "selectedFieldType": "labels",
+              "comparison": "CONTAINS_ANY",
+              "compareValue": {
+                "type": "NAME",
+                "modifier": null,
+                "value": "[\"repo-vend-proposed\"]",
+                "multiValue": true,
+                "source": null
+              }
+            },
+            "conditions": [],
+            "children": [],
+            "schemaVersion": 3,
             "connectionId": null,
             "checksum": null
           },

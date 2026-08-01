@@ -6,7 +6,7 @@ Single source of truth for humans and the Cursor Automation. Board URLs, approva
 
 1. **Propose** — Issue **created** in **New Request** → agent runs evals → Jira proposal comment. On pass, opens PR `requests/<ISSUE-KEY>.yaml`.
 2. **Re-propose (more context)** — While still **New Request** and **not** `repo-vended`, editing **summary/description** or adding a helper label (`platform-*` / `tf-*` / `type-*`) re-triggers `action: propose`. Outcome labels (`repo-vend-*`) do **not** re-trigger.
-3. **Approve** — Human replies with a Keyword Approval phrase (from `repo-vend.yaml` → `jira.approval.keywords`) → agent merges Spec PR → create-from-template.
+3. **Approve** — Human replies with a Keyword Approval phrase (from `repo-vend.yaml` → `jira.approval.keywords`) **after** `repo-vend-proposed` is present → agent merges Spec PR → create-from-template. The approve Automation must **not** run on issue create.
 4. **No rename after create** — Wrong name: edit the ticket and re-propose before approve, or open a new request.
 
 ### Keyword Approval (defaults)

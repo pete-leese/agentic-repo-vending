@@ -63,24 +63,28 @@ Triggered on: issue create, summary/description edit, or helper label add (platf
 
 1. Using Atlassian tools, load the issue.
 2. If label "repo-vended" is present: comment skipped and stop.
-3. Transition the issue to "In Progress" (or the processing status from repo-vend.yaml).
-4. Write /tmp/issue.json IssueSnapshot from the loaded issue.
-5. Set APPROVAL to the webhook comment body text (prefer comment.body.text).
-6. Resolve AGENT_ID (bc-…) for this run.
-7. Run:
+3. If label "repo-vend-proposed" is **missing**: comment that vend requires a completed proposal and stop
+   (create-time / premature approve webhooks must not vend).
+4. Transition the issue to "In Progress" (or the processing status from repo-vend.yaml).
+5. Write /tmp/issue.json IssueSnapshot from the loaded issue.
+6. Set APPROVAL to the webhook comment body text (prefer comment.body.text).
+7. Resolve AGENT_ID (bc-…) for this run.
+8. Run:
    python3 -m repo_vendor vend --issue-file /tmp/issue.json --approval-comment "$APPROVAL" --cursor-agent-id "$AGENT_ID" --json
-8. Apply result.jira with Atlassian tools, in this order:
+9. Apply result.jira with Atlassian tools, in this order:
    a. labels_remove / labels_add (must add repo-vended before editing Description)
    b. transition_to when set (Done on success/warning)
    c. if set_description is set, replace the issue Description with that text (approved-work summary)
    d. comment_markdown (preserve markdown; include Cursor agent link)
-9. Reply with outcome + repo URL if any. Never print secrets.
+10. Reply with outcome + repo URL if any. Never print secrets.
 
 ## Notes
 
 - Keyword Approval phrases (defaults): approved | lgtm | looks good | ship it | +1
   (override list is in repo-vend.yaml — keep Jira Automation comment condition in sync)
-- Jira approve rule must match {{comment.body.text}} with REGEX_CONTAINS
+- Jira **repo-vend-approve** must trigger on **Issue commented** only (never Issue created), and require:
+  labels contains `repo-vend-proposed`, labels does not contain `repo-vended`, and
+  `REGEX_CONTAINS` on `{{comment.body.text}} {{comment.body}} {{issue.comments.last.body.text}} {{issue.comments.last.body}}`
 - Dependencies install via .cursor/environment.json; prefer python3 if python is missing.
 - Webhook Authorization must use this Automation's webhook API key (not CURSOR_API_KEY).
 ```

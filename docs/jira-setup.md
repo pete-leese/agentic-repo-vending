@@ -79,8 +79,10 @@ Body:
 
 ## Rule 4 — Vend (Keyword Approval)
 
-1. Trigger: **Issue commented** / **Work item commented** (all comments — including threaded replies)
-2. Conditions (both must pass):
+1. Trigger: **Issue commented** / **Work item commented** only — **not** Issue created
+2. Conditions (all must pass):
+   - Labels **contains** `repo-vend-proposed` (proposal must already exist — blocks create-time false fires)
+   - Labels does **not** contain `repo-vended`
    - Advanced compare → **Contains regular expression** (`REGEX_CONTAINS`)
      - **First value** (paste exactly — covers nested replies where one smart value is empty):
 
@@ -95,7 +97,6 @@ Body:
        ```
 
        Do **not** use exact match (`REGEX_MATCHES`), lookbehind (`(?<!…)`), or `\b` word boundaries — those commonly yield audit **No actions performed** on replies.
-   - Labels does **not** contain `repo-vended`
 3. Action: POST same webhook
 
 ```json
@@ -115,8 +116,9 @@ The rule **did** wake on the comment; a **condition** failed. In the audit entry
 
 1. Is the compared text empty? → First value must include both `{{comment.body.text}}` and `{{comment.body}}` (and last-comment fallbacks above).
 2. Does the text include `lgtm` but still fail? → Drop `\b` / lookbehind; use the regex above.
-3. Did the **labels** condition fail? → Issue already has `repo-vended`.
-4. Quick prove: temporarily remove the regex condition, reply `lgtm` — if the webhook fires, the regex was the blocker.
+3. Did the **labels** condition fail? → Missing `repo-vend-proposed`, or issue already has `repo-vended`.
+4. Did approve fire on **create**? → Trigger must be **Issue commented** only; add labels **contains** `repo-vend-proposed`.
+5. Quick prove: temporarily remove the regex condition, reply `lgtm` on a proposed ticket — if the webhook fires, the regex was the blocker.
 
 **Top-level `lgtm` still works** with the same rule.
 

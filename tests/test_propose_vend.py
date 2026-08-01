@@ -301,6 +301,28 @@ def test_vend_from_spec_success_warning_on_protect():
     assert "Approved repo vend" in result.jira.set_description
 
 
+def test_vend_blocked_without_proposed_label():
+    """Create-time / premature vend must not run before repo-vend-proposed."""
+    settings = _settings()
+    issue = IssueSnapshot(
+        key="REPO-NEW",
+        summary="give me a repo for my project invoices-service",
+        labels=[],  # no repo-vend-proposed yet
+    )
+    github = MagicMock()
+    github.__enter__.return_value = github
+    github.__exit__.return_value = None
+
+    with patch("repo_vendor.workflow.GitHubClient", return_value=github):
+        result = vend_issue(issue, approval_comment="lgtm", settings=settings)
+
+    assert result.success is False
+    assert result.outcome == "error"
+    assert "repo-vend-proposed" in result.message
+    github.create_from_template.assert_not_called()
+    github.open_spec_pr.assert_not_called()
+
+
 def test_vend_repo_exists_no_vended_label():
     settings = _settings()
     issue = IssueSnapshot(key="KAN-13", labels=["repo-vend-proposed"])
