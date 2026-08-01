@@ -174,6 +174,34 @@ def test_heuristic_ec2_module_without_saying_terraform():
     assert gate.template == "template-terraform-repo"
 
 
+def test_module_purpose_ignores_give_me_filler():
+    """REPO-15 style: LLM purpose polluted, proposed_name correct."""
+    intent = ExtractedIntent(
+        project_type=ProjectType.TERRAFORM,
+        terraform_shape=TerraformShape.MODULE,
+        platform=Platform.GCP,
+        purpose="give-me-gke",
+        proposed_name="terraform-module-gke-gcp",
+    )
+    assert build_proposed_name(intent) == "terraform-module-gke-gcp"
+    gate = validate_name_and_template(intent)
+    assert gate.passed, gate.errors
+    assert gate.normalized_name == "terraform-module-gke-gcp"
+
+
+def test_heuristic_give_me_gke_module():
+    intent = infer_intent_from_labels_and_text(
+        summary="give me a repo for a terraform GKE terraform module",
+        description="",
+        labels=[],
+    )
+    assert intent.project_type == ProjectType.TERRAFORM
+    assert intent.terraform_shape == TerraformShape.MODULE
+    assert intent.platform == Platform.GCP
+    assert intent.purpose == "gke"
+    assert build_proposed_name(intent) == "terraform-module-gke-gcp"
+
+
 def test_generic_mistype_with_terraform_module_proposed_name():
     """LLM named a terraform module but left project_type generic/default."""
     intent = ExtractedIntent(

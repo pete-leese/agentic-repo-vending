@@ -1,5 +1,5 @@
 from repo_vendor.models import SpecEvals, SpecRequest
-from repo_vendor.spec import format_spec_pr_body, format_spec_pr_title
+from repo_vendor.spec import format_spec_pr_body, format_spec_pr_title, resolve_create_name_from_spec
 
 
 def _spec(**kwargs) -> SpecRequest:
@@ -56,3 +56,25 @@ def test_format_spec_pr_body_truncates_long_description():
     body = format_spec_pr_body(_spec(description=long_desc))
     assert "_(truncated)_" in body
     assert len(body) < len(long_desc) + 800
+
+
+def test_resolve_create_name_prefers_intent_over_polluted_top_level():
+    """REPO-15: intent name correct, top-level rebuilt with give-me filler."""
+    spec = SpecRequest(
+        issue_key="REPO-15",
+        summary="give me a repo for a terraform GKE terraform module",
+        proposed_name="terraform-module-give-me-gke-gcp",
+        template="template-terraform-repo",
+        intent={
+            "project_type": "terraform",
+            "terraform_shape": "module",
+            "platform": "gcp",
+            "purpose": "give-me-gke",
+            "proposed_name": "terraform-module-gke-gcp",
+            "confidence": 1.0,
+        },
+        evals=SpecEvals(llm_passed=True, deterministic_passed=True),
+    )
+    name, template = resolve_create_name_from_spec(spec)
+    assert name == "terraform-module-gke-gcp"
+    assert template == "template-terraform-repo"

@@ -35,6 +35,7 @@ from repo_vendor.spec import (
     format_spec_pr_body,
     format_spec_pr_title,
     request_rel_path,
+    resolve_create_name_from_spec,
     spec_from_yaml,
     spec_to_yaml,
 )
@@ -410,6 +411,9 @@ def propose_issue(
         assert gate.normalized_name and gate.template
         name = gate.normalized_name
         template = gate.template
+        # Keep Spec intent + top-level proposed_name in lockstep with the gate name.
+        intent.proposed_name = name
+        intent = reconcile_intent_from_proposed_name(intent)
         intent.confidence = derive_confidence(intent, gate_passed=True)
         path = request_rel_path(key)
         spec = SpecRequest(
@@ -557,8 +561,10 @@ def vend_issue(
                     raw = local.read_text(encoding="utf-8")
 
                 spec = spec_from_yaml(raw)
-                name = spec.proposed_name
-                template = spec.template
+                # Spec is SoR: resolve create name from intent (not a polluted top-level typo).
+                name, resolved_template = resolve_create_name_from_spec(spec, settings)
+                template = spec.template or resolved_template
+                spec.proposed_name = name
 
                 if github.repo_exists(name):
                     msg = (

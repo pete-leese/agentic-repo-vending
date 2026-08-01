@@ -6,7 +6,19 @@ from pathlib import Path
 
 import yaml
 
-from repo_vendor.models import SpecRequest
+from repo_vendor.config import Settings, get_settings
+from repo_vendor.models import ExtractedIntent, SpecRequest
+from repo_vendor.naming import (
+    GENERIC_NAME,
+    PYTHON_NAME,
+    TF_MODULE,
+    TF_ROOT,
+    build_proposed_name,
+    clean_purpose_slug,
+    select_template,
+    to_kebab,
+    validate_name_and_template,
+)
 from repo_vendor.prompts import find_repo_root
 
 _MAX_DESC_CHARS = 1200
@@ -36,6 +48,67 @@ def write_spec_local(spec: SpecRequest, root: Path | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(spec_to_yaml(spec), encoding="utf-8")
     return path
+
+
+def _is_canonical_repo_name(name: str) -> bool:
+    return bool(
+        TF_MODULE.fullmatch(name)
+        or TF_ROOT.fullmatch(name)
+        or PYTHON_NAME.fullmatch(name)
+        or GENERIC_NAME.fullmatch(name)
+    )
+
+
+def resolve_create_name_from_spec(
+    spec: SpecRequest,
+    settings: Settings | None = None,
+) -> tuple[str, str]:
+    """Resolve ``(repo_name, template)`` for create-from-template from Spec.
+
+    Spec is the system of record. Prefer a canonical ``intent.proposed_name`` over a
+    polluted top-level ``proposed_name`` (REPO-15: intent had ``terraform-module-gke-gcp``
+    while top-level was rebuilt as ``terraform-module-give-me-gke-gcp``), then rebuild
+    via the deterministic gate so purpose filler cannot win.
+    """
+    settings = settings or get_settings()
+    intent = ExtractedIntent.model_validate(spec.intent or {})
+    top = to_kebab(spec.proposed_name) if spec.proposed_name else None
+    inner = to_kebab(intent.proposed_name) if intent.proposed_name else None
+
+    # Prefer intent.proposed_name when it is already a valid repo name.
+    chosen: str | None = None
+    for candidate in (inner, top):
+        if candidate and _is_canonical_repo_name(candidate):
+            chosen = candidate
+            break
+    if chosen:
+        intent.proposed_name = chosen
+    elif top:
+        intent.proposed_name = top
+
+    if intent.purpose:
+        cleaned = clean_purpose_slug(intent.purpose)
+        if cleaned:
+            intent.purpose = cleaned
+
+    gate = validate_name_and_template(intent, settings)
+    if gate.passed and gate.normalized_name:
+        template = gate.template or spec.template
+        return gate.normalized_name, template
+
+    built = build_proposed_name(intent)
+    if built:
+        if intent.project_type is not None:
+            template = select_template(intent.project_type, settings)
+        else:
+            template = spec.template
+        return built, template or spec.template
+
+    if not top:
+        raise ValueError(
+            f"Spec {spec.issue_key} has no usable proposed_name for create-from-template"
+        )
+    return top, spec.template
 
 
 def format_spec_pr_title(spec: SpecRequest) -> str:

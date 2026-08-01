@@ -43,11 +43,10 @@ def _load_config() -> dict:
 
 
 def _approval_regex(keywords: list[str]) -> str:
-    """Regex for Jira Automation REGEX_CONTAINS on {{comment.body.text}}.
+    """Regex for Jira Automation REGEX_CONTAINS on comment body smart values.
 
-    Avoid lookbehind — Atlassian’s regex engine often rejects ``(?<!…)`` and then
-    the whole condition silently fails (audit: No actions performed), especially
-    on threaded replies where ADF markup already makes matching fragile.
+    Keep it permissive: no lookbehind, no ``\\b`` (ADF / soft breaks around replies
+    often break word-boundary matches → audit No actions performed).
     """
     plus_one = False
     words: list[str] = []
@@ -58,16 +57,23 @@ def _approval_regex(keywords: list[str]) -> str:
         if k == "+1":
             plus_one = True
             continue
-        # Allow flexible whitespace inside multi-word phrases (ADF / soft breaks)
         words.append(re.escape(k).replace(r"\ ", r"\s+"))
     parts: list[str] = []
     if words:
-        parts.append(rf"\b(?:{'|'.join(words)})\b")
+        parts.append(rf"(?:{'|'.join(words)})")
     if plus_one:
         parts.append(r"\+1")
     if not parts:
-        parts = [r"\b(?:approved|lgtm)\b"]
+        parts = [r"(?:approved|lgtm)"]
     return rf"(?i)(?:{'|'.join(parts)})"
+
+
+# Match against plain text and wiki/ADF renderings — nested replies often leave
+# one of these empty.
+_APPROVAL_BODY_SMART_VALUE = (
+    "{{comment.body.text}} {{comment.body}} "
+    "{{issue.comments.last.body.text}} {{issue.comments.last.body}}"
+)
 
 
 def _new_uuid() -> str:
@@ -158,17 +164,14 @@ def _patch_from_config(data: dict, cfg: dict) -> None:
             # Keyword regex (approve rule only — do not overwrite label-retrigger regex)
             if (
                 cond.get("type") == "jira.comparator.condition"
-                and value.get("first")
-                in {
-                    "{{comment.body}}",
-                    "{{comment.body.text}}",
-                    "{{issue.comments.last.body}}",
-                    "{{issue.comments.last.body.text}}",
-                }
                 and value.get("operator")
                 in {"REGEX_MATCHES", "REGEX_CONTAINS", "CONTAINS_REGEX"}
+                and (
+                    "comment.body" in str(value.get("first") or "")
+                    or "comments.last.body" in str(value.get("first") or "")
+                )
             ):
-                value["first"] = "{{comment.body.text}}"
+                value["first"] = _APPROVAL_BODY_SMART_VALUE
                 value["second"] = regex
                 value["operator"] = "REGEX_CONTAINS"
 
