@@ -29,6 +29,48 @@ PYTHON_NAME = re.compile(r"^python-(?P<purpose>[a-z0-9]+(?:-[a-z0-9]+)*)$")
 # Generic: plain kebab, not reserved type prefixes
 GENERIC_NAME = re.compile(r"^(?!terraform-|python-)[a-z0-9]+(?:-[a-z0-9]+)*$")
 
+# Ticket filler that must never become part of a repo purpose slug.
+# Example: "give me a repo for a terraform GKE module" → purpose "gke", not "give-me-gke".
+_PURPOSE_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "for",
+        "my",
+        "on",
+        "to",
+        "of",
+        "i",
+        "we",
+        "me",
+        "need",
+        "please",
+        "create",
+        "want",
+        "give",
+        "get",
+        "make",
+        "add",
+        "new",
+        "repo",
+        "repository",
+        "terraform",
+        "module",
+        "python",
+        "generic",
+        "aws",
+        "gcp",
+        "azure",
+        "reusable",
+        "project",
+        "root",
+        "something",
+        "request",
+        "vend",
+    }
+)
+
 
 def to_kebab(value: str) -> str:
     """Normalize snake_case, spaces, CamelCase fragments into kebab-case."""
@@ -43,6 +85,18 @@ def to_kebab(value: str) -> str:
 
 def is_kebab(value: str) -> bool:
     return bool(_KEBAB.fullmatch(value))
+
+
+def clean_purpose_slug(value: str | None) -> str | None:
+    """Kebab-ize and drop conversational filler tokens from a purpose slug."""
+    if not value:
+        return None
+    parts = [
+        p
+        for p in to_kebab(value).split("-")
+        if p and p not in _PURPOSE_STOPWORDS
+    ]
+    return "-".join(parts) or None
 
 
 def reconcile_intent_from_proposed_name(intent: ExtractedIntent) -> ExtractedIntent:
@@ -93,6 +147,9 @@ def build_proposed_name(intent: ExtractedIntent) -> str | None:
     Terraform modules always rebuild as ``terraform-module-<purpose>-<platform>``
     so an LLM ``proposed_name`` without a platform suffix cannot drop ``-aws``/etc.
     after platform was derived from S3/EKS/… aliases.
+
+    Purpose prefers a canonical ``proposed_name`` match over a polluted
+    ``purpose`` field (e.g. ``give-me-gke`` from "give me a … GKE module").
     """
     if intent.project_type == ProjectType.TERRAFORM and intent.terraform_shape == TerraformShape.MODULE:
         purpose = _module_purpose_slug(intent)
@@ -105,9 +162,9 @@ def build_proposed_name(intent: ExtractedIntent) -> str | None:
             name = to_kebab(intent.proposed_name)
             if PYTHON_NAME.fullmatch(name):
                 return name
-        if not intent.purpose:
+        purpose = clean_purpose_slug(intent.purpose)
+        if not purpose:
             return None
-        purpose = to_kebab(intent.purpose)
         if purpose.startswith("python-"):
             return purpose
         return f"python-{purpose}"
@@ -117,9 +174,9 @@ def build_proposed_name(intent: ExtractedIntent) -> str | None:
             name = to_kebab(intent.proposed_name)
             if intent.terraform_shape == TerraformShape.ROOT and TF_ROOT.fullmatch(name):
                 return name
-        if not intent.purpose:
+        purpose = clean_purpose_slug(intent.purpose)
+        if not purpose:
             return None
-        purpose = to_kebab(intent.purpose)
         purpose = re.sub(r"^terraform-(module-)?", "", purpose)
         if intent.terraform_shape == TerraformShape.ROOT:
             return f"terraform-{purpose}"
@@ -129,11 +186,9 @@ def build_proposed_name(intent: ExtractedIntent) -> str | None:
         # Plain kebab only — never keep terraform-/python- prefixes under generic.
         # (If the name was clearly a typed module, enrich_intent_type_and_shape /
         # validate_name_and_template should have coerced type away from generic.)
-        raw: str | None = None
-        if intent.purpose:
-            raw = to_kebab(intent.purpose)
-        elif intent.proposed_name:
-            raw = to_kebab(intent.proposed_name)
+        raw = clean_purpose_slug(intent.purpose)
+        if not raw and intent.proposed_name:
+            raw = clean_purpose_slug(intent.proposed_name)
         if not raw:
             return None
         raw = re.sub(r"^terraform-module-", "", raw)
@@ -153,12 +208,20 @@ def build_proposed_name(intent: ExtractedIntent) -> str | None:
 
 
 def _module_purpose_slug(intent: ExtractedIntent) -> str | None:
-    """Purpose slug for a terraform module, without type/platform prefixes/suffixes."""
-    raw: str | None = None
-    if intent.purpose:
-        raw = to_kebab(intent.purpose)
-    elif intent.proposed_name:
-        raw = to_kebab(intent.proposed_name)
+    """Purpose slug for a terraform module, without type/platform prefixes/suffixes.
+
+    Prefer the purpose embedded in a canonical ``proposed_name`` when present so
+    conversational filler in ``purpose`` (give-me-…) cannot override a good LLM name.
+    """
+    if intent.proposed_name:
+        name = to_kebab(intent.proposed_name)
+        m = TF_MODULE.fullmatch(name)
+        if m:
+            return m.group("name")
+
+    raw = clean_purpose_slug(intent.purpose)
+    if not raw and intent.proposed_name:
+        raw = clean_purpose_slug(intent.proposed_name)
     if not raw:
         return None
     raw = re.sub(r"^terraform-(module-)?", "", raw)
@@ -166,7 +229,7 @@ def _module_purpose_slug(intent: ExtractedIntent) -> str | None:
         if raw.endswith(f"-{p.value}"):
             raw = raw[: -len(p.value) - 1]
             break
-    return raw or None
+    return clean_purpose_slug(raw)
 
 
 def enrich_intent_platform(
@@ -474,14 +537,7 @@ def infer_intent_from_labels_and_text(
                 purpose = purpose[: -len(p.value) - 1]
                 break
     else:
-        purpose_raw = re.sub(
-            r"\b(terraform|module|python|generic|repo|repository|new|for|my|on|aws|gcp|azure|"
-            r"need|please|create|a|an|the|reusable|project|root|i|we|want|to|of)\b",
-            " ",
-            summary,
-            flags=re.I,
-        )
-        purpose = to_kebab(purpose_raw) or None
+        purpose = clean_purpose_slug(summary)
 
     if project_type is None and shape is not None:
         project_type = ProjectType.TERRAFORM

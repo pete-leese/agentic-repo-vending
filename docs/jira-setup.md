@@ -79,12 +79,22 @@ Body:
 
 ## Rule 4 — Vend (Keyword Approval)
 
-1. Trigger: **Issue commented**
-2. Conditions:
-   - First value: **`{{comment.body.text}}`** (plain text — required for threaded replies; `{{comment.body}}` is often ADF/wiki and fails the regex)
-   - Operator: **Contains regular expression** (`REGEX_CONTAINS`)
-   - Regex: `(?i)(?:\b(?:approved|lgtm|looks\s+good|ship\s+it)\b|\+1)`  
-     Avoid lookbehind (`(?<!…)`): Jira Automation often rejects it and the condition never matches.
+1. Trigger: **Issue commented** / **Work item commented** (all comments — including threaded replies)
+2. Conditions (both must pass):
+   - Advanced compare → **Contains regular expression** (`REGEX_CONTAINS`)
+     - **First value** (paste exactly — covers nested replies where one smart value is empty):
+
+       ```text
+       {{comment.body.text}} {{comment.body}} {{issue.comments.last.body.text}} {{issue.comments.last.body}}
+       ```
+
+     - **Regular expression:**
+
+       ```text
+       (?i)(?:approved|lgtm|looks\s+good|ship\s+it|\+1)
+       ```
+
+       Do **not** use exact match (`REGEX_MATCHES`), lookbehind (`(?<!…)`), or `\b` word boundaries — those commonly yield audit **No actions performed** on replies.
    - Labels does **not** contain `repo-vended`
 3. Action: POST same webhook
 
@@ -92,16 +102,23 @@ Body:
 {
   "action": "vend",
   "issue": { "key": "{{issue.key}}" },
-  "comment": { "body": "{{comment.body.text}}" }
+  "comment": { "body": "{{comment.body.text}}{{comment.body}}" }
 }
 ```
 
 Keyword list: `approved`, `lgtm`, `looks good`, `ship it`, `+1`.  
 Comment **likes/reactions are not supported** as triggers.
 
-**Top-level or nested reply both work** when the condition uses `{{comment.body.text}}` + `REGEX_CONTAINS`. Nested replies are where `{{comment.body}}` most often fails (ADF / quote markup).
+### Debug “No actions performed”
 
-If audit log says **No actions performed**, open the audit entry — usually the regex condition failed. Confirm First value is `{{comment.body.text}}`, operator is Contains regex, then reply `lgtm` again.
+The rule **did** wake on the comment; a **condition** failed. In the audit entry, expand the compare condition and check:
+
+1. Is the compared text empty? → First value must include both `{{comment.body.text}}` and `{{comment.body}}` (and last-comment fallbacks above).
+2. Does the text include `lgtm` but still fail? → Drop `\b` / lookbehind; use the regex above.
+3. Did the **labels** condition fail? → Issue already has `repo-vended`.
+4. Quick prove: temporarily remove the regex condition, reply `lgtm` — if the webhook fires, the regex was the blocker.
+
+**Top-level `lgtm` still works** with the same rule.
 
 ## Human workflow
 
@@ -174,7 +191,7 @@ Example rule export shape (sanitized):
 }
 ```
 
-Wire the comment-match condition in the Jira UI (Advanced compare / regex on `{{comment.body.text}}`).
+Wire the comment-match condition in the Jira UI (Advanced compare / regex on the multi smart-value First value in Rule 4).
 
 ## Optional env overrides
 

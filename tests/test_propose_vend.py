@@ -120,12 +120,48 @@ def test_propose_pass_includes_cursor_agent_link():
     assert "**Confidence:**" in result.jira.comment_markdown
 
 
-def test_vend_rejects_without_keyword():
+def test_vend_uses_intent_proposed_name_when_top_level_polluted():
     settings = _settings()
-    issue = IssueSnapshot(key="KAN-11", summary="x", status="New Request", labels=[])
-    result = vend_issue(issue, approval_comment="maybe later", settings=settings)
-    assert result.success is False
-    assert "Keyword Approval" in result.message
+    issue = IssueSnapshot(
+        key="REPO-15",
+        summary="give me a repo for a terraform GKE terraform module",
+        labels=["repo-vend-proposed"],
+    )
+    spec = SpecRequest(
+        issue_key="REPO-15",
+        summary="give me a repo for a terraform GKE terraform module",
+        proposed_name="terraform-module-give-me-gke-gcp",
+        template="template-terraform-repo",
+        intent={
+            "project_type": "terraform",
+            "terraform_shape": "module",
+            "platform": "gcp",
+            "purpose": "give-me-gke",
+            "proposed_name": "terraform-module-gke-gcp",
+        },
+        evals=SpecEvals(llm_passed=True, deterministic_passed=True),
+    )
+    github = MagicMock()
+    github.__enter__.return_value = github
+    github.__exit__.return_value = None
+    github.ensure_spec_merged.return_value = None
+    github.get_file_text.return_value = spec_to_yaml(spec)
+    github.repo_exists.return_value = False
+    github.create_from_template.return_value = CreatedRepo(
+        name="terraform-module-gke-gcp",
+        html_url="https://github.com/example/terraform-module-gke-gcp",
+        full_name="example/terraform-module-gke-gcp",
+    )
+    github.protect_main.return_value = True
+    github.write_vended_readme.return_value = True
+
+    with patch("repo_vendor.workflow.GitHubClient", return_value=github):
+        result = vend_issue(issue, approval_comment="lgtm", settings=settings)
+
+    assert result.success is True
+    assert result.repo_name == "terraform-module-gke-gcp"
+    github.create_from_template.assert_called_once()
+    assert github.create_from_template.call_args.kwargs["name"] == "terraform-module-gke-gcp"
 
 
 def test_vend_from_spec_success_warning_on_protect():

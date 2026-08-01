@@ -129,7 +129,7 @@
       "clientKey": "e973e2fb-9d76-4beb-b4b3-40d633190b84",
       "name": "repo-vend-approve",
       "state": "DISABLED",
-      "description": "On Keyword Approval comment containing approved|lgtm|looks good|ship it|+1 (REGEX_CONTAINS on comment.body.text — plain text, works for threaded replies). Likes/reactions are not used.",
+      "description": "On Keyword Approval comment containing approved|lgtm|looks good|ship it|+1. REGEX_CONTAINS on comment.body.text + comment.body + last comment (nested replies). No lookbehind / word-boundary.",
       "authorAccountId": "5f4622c1fdc3f5003ff4e536",
       "actor": {
         "type": "ACCOUNT_ID",
@@ -159,8 +159,8 @@
             "component": "CONDITION",
             "type": "jira.comparator.condition",
             "value": {
-              "first": "{{comment.body.text}}",
-              "second": "(?i)(?:\\b(?:approved|lgtm|looks\\s+good|ship\\s+it)\\b|\\+1)",
+              "first": "{{comment.body.text}} {{comment.body}} {{issue.comments.last.body.text}} {{issue.comments.last.body}}",
+              "second": "(?i)(?:approved|lgtm|looks\\s+good|ship\\s+it|\\+1)",
               "operator": "REGEX_CONTAINS"
             },
             "conditions": [],
@@ -228,7 +228,7 @@
             ],
             "sendIssue": false,
             "contentType": "custom",
-            "customBody": "{\n  \"action\": \"vend\",\n  \"issue\": {\n    \"key\": \"{{issue.key}}\"\n  },\n  \"comment\": {\n    \"body\": \"{{comment.body.text}}\"\n  }\n}",
+            "customBody": "{\n  \"action\": \"vend\",\n  \"issue\": {\n    \"key\": \"{{issue.key}}\"\n  },\n  \"comment\": {\n    \"body\": \"{{comment.body.text}}{{comment.body}}\"\n  }\n}",
             "method": "POST",
             "responseEnabled": false,
             "continueOnErrorEnabled": false

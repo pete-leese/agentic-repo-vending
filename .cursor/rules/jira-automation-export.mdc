@@ -31,7 +31,10 @@ Canonical working example: [`docs/jira/automation-rules-two-phase.json`](../../d
 ## Project conventions for this repo
 
 - Two-phase flow (+ re-propose): `action: propose` on issue **created**, on **summary/description** edit, and on helper **label** add (`platform-|tf-|type-*`); `action: vend` on **commented** with Keyword Approval. See `docs/jira-setup.md` and `repo-vend.yaml`.
-- Approve comment condition: Advanced compare on **`{{comment.body.text}}`** (not `{{comment.body}}`) with **`REGEX_CONTAINS`** and `(?i)(?:\b(?:approved|lgtm|looks\s+good|ship\s+it)\b|\+1)`. Do not use lookbehind (`(?<!…)`). Exact `REGEX_MATCHES` or raw `{{comment.body}}` causes audit **No actions performed** on threaded replies (ADF/wiki markup).
+- Approve comment condition: Advanced compare **`REGEX_CONTAINS`** on  
+  `{{comment.body.text}} {{comment.body}} {{issue.comments.last.body.text}} {{issue.comments.last.body}}`  
+  with `(?i)(?:approved|lgtm|looks\s+good|ship\s+it|\+1)`.  
+  No lookbehind, no `\b`. Exact `REGEX_MATCHES` or a single empty smart value → audit **No actions performed** on threaded replies.
 - Webhook URL: Cursor Automation webhook; `Authorization: Bearer <webhook_api_key>` (not global `CURSOR_API_KEY`).
 - Keep `REPLACE_WITH_CURSOR_WEBHOOK_API_KEY` (or empty secure header) obvious so humans fill the real key after import.
 - Imported rules arrive **DISABLED** — document enable + disable of superseded rules.
