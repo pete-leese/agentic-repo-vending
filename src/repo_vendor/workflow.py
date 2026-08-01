@@ -560,6 +560,23 @@ def vend_issue(
                 jira=_error_plan(settings, f"## Vend blocked\n\n{msg}"),
             )
 
+        # Defense in depth: Jira approve rule must also require this label.
+        # Blocks create-time / premature vend webhooks before a proposal exists.
+        if settings.jira_proposed_label not in issue.labels:
+            msg = (
+                f"Vend requires label `{settings.jira_proposed_label}` "
+                "(proposal ready). Ignoring premature approve/create webhook."
+            )
+            record_vend(False, issue_key=key, reason="not_proposed")
+            return PhaseResult(
+                success=False,
+                outcome="error",
+                phase="vend",
+                issue_key=key,
+                message=msg,
+                jira=_error_plan(settings, f"## Vend blocked\n\n{msg}"),
+            )
+
         path = request_rel_path(key)
         try:
             with GitHubClient(settings) as github:

@@ -132,6 +132,7 @@ def _patch_from_config(data: dict, cfg: dict) -> None:
     ]
     new_request = statuses.get("new_request") or "New Request"
     vended = labels.get("vended") or "repo-vended"
+    proposed = labels.get("proposed") or "repo-vend-proposed"
     regex = _approval_regex([str(k) for k in keywords])
 
     for rule in data.get("rules") or []:
@@ -157,6 +158,15 @@ def _patch_from_config(data: dict, cfg: dict) -> None:
             ):
                 cv = value.get("compareValue") or {}
                 cv["value"] = json.dumps([vended])
+                value["compareValue"] = cv
+            # Labels CONTAINS_ANY repo-vend-proposed (approve rule)
+            if (
+                cond.get("type") == "jira.issue.condition"
+                and value.get("selectedFieldType") == "labels"
+                and value.get("comparison") == "CONTAINS_ANY"
+            ):
+                cv = value.get("compareValue") or {}
+                cv["value"] = json.dumps([proposed])
                 value["compareValue"] = cv
             # Keyword regex (approve rule only — do not overwrite label-retrigger regex)
             if (
