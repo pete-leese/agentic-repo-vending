@@ -10,6 +10,7 @@ import re
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.models import (
     DeterministicCheckResult,
+    EvalVerdict,
     ExtractedIntent,
     Platform,
     ProjectType,
@@ -96,7 +97,13 @@ def clean_purpose_slug(value: str | None) -> str | None:
 
 
 def reconcile_intent_from_proposed_name(intent: ExtractedIntent) -> ExtractedIntent:
-    """Align structured fields with a canonical proposed_name when present."""
+    """Align structured fields with a canonical proposed_name when present.
+
+    Typed name patterns (terraform-module-… / terraform-… / python-…) override
+    a wrong extract type. Plain kebab forces **generic** so a mistaken
+    terraform/python extract cannot rebuild ``terraform-<purpose>`` over a
+    judge-corrected generic name (REPO-16).
+    """
     name = intent.proposed_name
     if not name:
         return intent
@@ -124,16 +131,107 @@ def reconcile_intent_from_proposed_name(intent: ExtractedIntent) -> ExtractedInt
     m = PYTHON_NAME.fullmatch(name)
     if m:
         intent.project_type = ProjectType.PYTHON
+        intent.terraform_shape = None
         if not intent.purpose:
             intent.purpose = m.group("purpose")
         return intent
 
     if GENERIC_NAME.fullmatch(name):
-        if intent.project_type is None:
-            intent.project_type = ProjectType.GENERIC
+        intent.project_type = ProjectType.GENERIC
+        intent.terraform_shape = None
         if not intent.purpose:
             intent.purpose = name
+        return intent
 
+    return intent
+
+
+def apply_eval_verdict(
+    intent: ExtractedIntent,
+    verdict: EvalVerdict,
+    settings: Settings | None = None,
+) -> ExtractedIntent:
+    """Prefer the judge's name/template over a conflicting extract (REPO-16).
+
+    The judge reasons are advisory; its ``proposed_name`` / ``template`` are
+    applied before the deterministic gate so the published proposal cannot
+    advertise one name while reasons describe another.
+    """
+    settings = settings or get_settings()
+    if verdict.proposed_name:
+        intent.proposed_name = to_kebab(verdict.proposed_name)
+
+    tmpl = (verdict.template or "").strip()
+    if tmpl:
+        if tmpl == settings.template_generic:
+            intent.project_type = ProjectType.GENERIC
+            intent.terraform_shape = None
+        elif tmpl == settings.template_python:
+            intent.project_type = ProjectType.PYTHON
+            intent.terraform_shape = None
+        elif tmpl == settings.template_terraform:
+            intent.project_type = ProjectType.TERRAFORM
+
+    return reconcile_intent_from_proposed_name(intent)
+
+
+def ticket_has_typed_signals(
+    *,
+    summary: str,
+    description: str,
+    labels: list[str],
+) -> bool:
+    """True when the ticket clearly indicates terraform or python (not bare 'project')."""
+    labels_l = {lbl.lower() for lbl in labels}
+    blob = f"{summary}\n{description}\n{' '.join(labels)}".lower()
+    if any(
+        lbl.startswith("type-terraform")
+        or lbl.startswith("type-python")
+        or lbl.startswith("tf-")
+        or lbl.startswith("platform-")
+        for lbl in labels_l
+    ):
+        return True
+    if "terraform" in blob or re.search(r"\bpython\b", blob):
+        return True
+    if re.search(r"\bmodule\b", blob) and infer_platform_from_text(blob) is not None:
+        return True
+    return False
+
+
+def demote_untyped_weak_intent(
+    intent: ExtractedIntent,
+    *,
+    summary: str,
+    description: str,
+    labels: list[str],
+) -> ExtractedIntent:
+    """Drop false terraform/python when the ticket has no typed signals.
+
+    Prevents extract/heuristic mistypes (e.g. confidence 0.0 + bare 'project')
+    from locking terraform naming before the judge runs.
+    """
+    if intent.project_type in (None, ProjectType.GENERIC):
+        return intent
+    if ticket_has_typed_signals(summary=summary, description=description, labels=labels):
+        return intent
+
+    intent.project_type = None
+    intent.terraform_shape = None
+    if intent.proposed_name:
+        name = to_kebab(intent.proposed_name)
+        m_mod = TF_MODULE.fullmatch(name)
+        m_root = TF_ROOT.fullmatch(name)
+        m_py = PYTHON_NAME.fullmatch(name)
+        if m_mod:
+            intent.purpose = intent.purpose or m_mod.group("name")
+            intent.proposed_name = None
+        elif m_root:
+            intent.purpose = intent.purpose or m_root.group("name")
+            intent.proposed_name = None
+        elif m_py:
+            intent.purpose = intent.purpose or m_py.group("purpose")
+            intent.proposed_name = None
     return intent
 
 
@@ -519,10 +617,16 @@ def infer_intent_from_labels_and_text(
     shape: TerraformShape | None = None
     if "tf-module" in labels_l or re.search(r"\bmodule\b", blob):
         shape = TerraformShape.MODULE
-    if "tf-root" in labels_l or re.search(r"\broot\b", blob) or re.search(r"\bproject\b", blob):
+    # Do NOT treat bare "project" as terraform root — tickets often say
+    # "repo for my project X" with no infra intent (REPO-16).
+    if "tf-root" in labels_l or re.search(r"\bterraform\s+root\b", blob):
+        shape = TerraformShape.ROOT
+    elif re.search(r"\broot\s+(?:project|stack|workspace)\b", blob) and (
+        "terraform" in blob or "type-terraform" in labels_l or "tf-module" in labels_l
+    ):
+        shape = TerraformShape.ROOT
+    elif "tf-root" not in labels_l and re.search(r"\broot\b", blob) and "terraform" in blob:
         if "tf-module" not in labels_l and not re.search(r"\bmodule\b", blob):
-            shape = TerraformShape.ROOT
-        elif "tf-root" in labels_l:
             shape = TerraformShape.ROOT
 
     platform = infer_platform_from_text(blob)

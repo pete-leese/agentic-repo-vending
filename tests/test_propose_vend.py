@@ -88,6 +88,96 @@ def test_propose_pass_opens_spec_pr():
     assert "confidence:" in yaml_body
 
 
+def test_propose_repo16_judge_generic_overrides_extract_terraform():
+    """REPO-16: judge says generic/invoices-service; must not publish terraform-*."""
+    from repo_vendor.models import EvalVerdict, ExtractedIntent, ProjectType, TerraformShape
+
+    settings = _settings()
+    issue = IssueSnapshot(
+        key="REPO-16",
+        summary='give me a repo for my project "invoices-service"',
+        description="",
+        status="New Request",
+        labels=[],
+    )
+    github = MagicMock()
+    github.__enter__.return_value = github
+    github.__exit__.return_value = None
+    github.open_spec_pr.return_value = PullRequestInfo(
+        number=19,
+        html_url="https://github.com/pete-leese/agentic-repo-vending/pull/19",
+        merged=False,
+        state="open",
+        head_ref="propose/REPO-16",
+    )
+
+    bad_extract = ExtractedIntent(
+        project_type=ProjectType.TERRAFORM,
+        terraform_shape=TerraformShape.ROOT,
+        purpose="invoices-service",
+        proposed_name="terraform-invoices-service",
+        confidence=0.0,
+    )
+    good_verdict = EvalVerdict(
+        passed=True,
+        proposed_name="invoices-service",
+        template="template-generic-repo",
+        reasons=[
+            "Ticket has no Terraform/Python/cloud indicators.",
+            "Prefer generic naming and template-generic-repo.",
+            "Proposed name 'invoices-service' is valid plain kebab-case.",
+        ],
+    )
+
+    with (
+        patch("repo_vendor.workflow.GitHubClient", return_value=github),
+        patch("repo_vendor.workflow.extract_intent_with_harness", return_value=bad_extract),
+        patch("repo_vendor.workflow.eval_with_harness", return_value=good_verdict),
+    ):
+        result = propose_issue(issue, settings=settings)
+
+    assert result.success is True
+    assert result.proposed_name == "invoices-service"
+    assert result.template == "template-generic-repo"
+    assert "terraform-invoices-service" not in (result.jira.comment_markdown or "")
+    assert "`invoices-service`" in result.jira.comment_markdown
+    assert "template-generic-repo" in result.jira.comment_markdown
+    assert "Deterministic gate locked" in result.jira.comment_markdown
+    yaml_body = github.open_spec_pr.call_args.kwargs["content"]
+    assert "proposed_name: invoices-service" in yaml_body
+    assert "template: template-generic-repo" in yaml_body
+    assert "terraform-invoices-service" not in yaml_body
+
+
+def test_propose_invoices_service_heuristic_is_generic():
+    """End-to-end heuristic path: 'my project invoices-service' → generic."""
+    settings = _settings()
+    issue = IssueSnapshot(
+        key="REPO-16b",
+        summary='give me a repo for my project "invoices-service"',
+        description="",
+        status="New Request",
+        labels=[],
+    )
+    github = MagicMock()
+    github.__enter__.return_value = github
+    github.__exit__.return_value = None
+    github.open_spec_pr.return_value = PullRequestInfo(
+        number=20,
+        html_url="https://github.com/pete-leese/agentic-repo-vending/pull/20",
+        merged=False,
+        state="open",
+        head_ref="propose/REPO-16b",
+    )
+
+    with patch("repo_vendor.workflow.GitHubClient", return_value=github):
+        result = propose_issue(issue, settings=settings)
+
+    assert result.success is True
+    assert result.proposed_name == "invoices-service"
+    assert result.template == "template-generic-repo"
+
+
 def test_propose_pass_includes_cursor_agent_link():
     settings = _settings()
     issue = IssueSnapshot(

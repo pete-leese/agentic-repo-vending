@@ -270,3 +270,82 @@ def test_reconcile_intent_from_judge_proposed_name():
     assert intent.terraform_shape == TerraformShape.MODULE
     assert intent.platform == Platform.AWS
     assert validate_name_and_template(intent).passed
+
+
+def test_repo16_project_word_is_not_terraform_root():
+    """Bare 'project' must not imply terraform root (REPO-16)."""
+    intent = infer_intent_from_labels_and_text(
+        summary='give me a repo for my project "invoices-service"',
+        description="",
+        labels=[],
+    )
+    assert intent.project_type is None or intent.project_type == ProjectType.GENERIC
+    assert intent.terraform_shape is None
+    intent.purpose = intent.purpose or "invoices-service"
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "invoices-service"
+    assert gate.template == "template-generic-repo"
+
+
+def test_reconcile_plain_kebab_demotes_false_terraform():
+    intent = ExtractedIntent(
+        project_type=ProjectType.TERRAFORM,
+        terraform_shape=TerraformShape.ROOT,
+        purpose="invoices-service",
+        proposed_name="invoices-service",
+        confidence=0.0,
+    )
+    intent = reconcile_intent_from_proposed_name(intent)
+    assert intent.project_type == ProjectType.GENERIC
+    assert intent.terraform_shape is None
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "invoices-service"
+    assert gate.template == "template-generic-repo"
+
+
+def test_apply_eval_verdict_overrides_extract_mistype():
+    from repo_vendor.models import EvalVerdict
+    from repo_vendor.naming import apply_eval_verdict
+
+    intent = ExtractedIntent(
+        project_type=ProjectType.TERRAFORM,
+        terraform_shape=TerraformShape.ROOT,
+        purpose="invoices-service",
+        proposed_name="terraform-invoices-service",
+        confidence=0.0,
+    )
+    verdict = EvalVerdict(
+        passed=True,
+        proposed_name="invoices-service",
+        template="template-generic-repo",
+        reasons=["unclear → generic"],
+    )
+    intent = apply_eval_verdict(intent, verdict)
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "invoices-service"
+    assert gate.template == "template-generic-repo"
+
+
+def test_demote_untyped_weak_intent_clears_false_terraform():
+    from repo_vendor.naming import demote_untyped_weak_intent
+
+    intent = ExtractedIntent(
+        project_type=ProjectType.TERRAFORM,
+        terraform_shape=TerraformShape.ROOT,
+        purpose="invoices-service",
+        confidence=0.0,
+    )
+    intent = demote_untyped_weak_intent(
+        intent,
+        summary='give me a repo for my project "invoices-service"',
+        description="",
+        labels=[],
+    )
+    assert intent.project_type is None
+    assert intent.terraform_shape is None
+    gate = validate_name_and_template(intent)
+    assert gate.passed
+    assert gate.normalized_name == "invoices-service"
