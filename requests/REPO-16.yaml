@@ -26,4 +26,4 @@ evals:
     required for generic repos.
   missing_info: []
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/19
