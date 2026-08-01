@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import httpx
 
 from repo_vendor.config import Settings, get_settings
+from repo_vendor.models import SpecRequest
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,43 @@ class GitHubClient:
             return False
         r.raise_for_status()
         return True
+
+    def list_control_plane_specs(self) -> list[SpecRequest]:
+        """Load Spec Requests from ``requests/*.yaml`` on the control-plane default branch.
+
+        Falls back to the local ``requests/`` tree when dry-run or the remote dir is empty.
+        """
+        from repo_vendor.spec import load_specs_from_requests_dir, spec_from_yaml
+
+        if self.settings.dry_run:
+            return load_specs_from_requests_dir()
+
+        r = self._client.get(f"/repos/{self._control}/contents/requests")
+        if r.status_code == 404:
+            return load_specs_from_requests_dir()
+        r.raise_for_status()
+        entries = r.json()
+        if not isinstance(entries, list):
+            return load_specs_from_requests_dir()
+
+        specs: list[SpecRequest] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name") or "")
+            if not name.endswith(".yaml") or name.lower() == "readme.yaml":
+                continue
+            if entry.get("type") != "file":
+                continue
+            path = str(entry.get("path") or f"requests/{name}")
+            try:
+                text = self.get_file_text(path)
+                specs.append(spec_from_yaml(text))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Skipping remote Spec %s: %s", path, exc)
+
+        # Prefer remote; if remote listing is empty, fall back to local checkout.
+        return specs or load_specs_from_requests_dir()
 
     def create_from_template(
         self, *, template: str, name: str, description: str = ""

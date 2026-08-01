@@ -18,6 +18,15 @@ def _settings(**kwargs) -> Settings:
     return Settings(**base)
 
 
+def _github_mock() -> MagicMock:
+    github = MagicMock()
+    github.__enter__.return_value = github
+    github.__exit__.return_value = None
+    github.list_control_plane_specs.return_value = []
+    github.repo_exists.return_value = False
+    return github
+
+
 def test_propose_eval_fail_no_pr():
     settings = _settings()
     issue = IssueSnapshot(
@@ -27,9 +36,7 @@ def test_propose_eval_fail_no_pr():
         status="New Request",
         labels=[],
     )
-    github = MagicMock()
-    github.__enter__.return_value = github
-    github.__exit__.return_value = None
+    github = _github_mock()
 
     with patch("repo_vendor.workflow.GitHubClient", return_value=github):
         result = propose_issue(issue, settings=settings)
@@ -50,9 +57,7 @@ def test_propose_pass_opens_spec_pr():
         status="New Request",
         labels=["type-python"],
     )
-    github = MagicMock()
-    github.__enter__.return_value = github
-    github.__exit__.return_value = None
+    github = _github_mock()
     github.open_spec_pr.return_value = PullRequestInfo(
         number=3,
         html_url="https://github.com/pete-leese/agentic-repo-vending/pull/3",
@@ -100,9 +105,7 @@ def test_propose_repo16_judge_generic_overrides_extract_terraform():
         status="New Request",
         labels=[],
     )
-    github = MagicMock()
-    github.__enter__.return_value = github
-    github.__exit__.return_value = None
+    github = _github_mock()
     github.open_spec_pr.return_value = PullRequestInfo(
         number=19,
         html_url="https://github.com/pete-leese/agentic-repo-vending/pull/19",
@@ -159,9 +162,7 @@ def test_propose_invoices_service_heuristic_is_generic():
         status="New Request",
         labels=[],
     )
-    github = MagicMock()
-    github.__enter__.return_value = github
-    github.__exit__.return_value = None
+    github = _github_mock()
     github.open_spec_pr.return_value = PullRequestInfo(
         number=20,
         html_url="https://github.com/pete-leese/agentic-repo-vending/pull/20",
@@ -187,9 +188,7 @@ def test_propose_pass_includes_cursor_agent_link():
         status="New Request",
         labels=["type-python"],
     )
-    github = MagicMock()
-    github.__enter__.return_value = github
-    github.__exit__.return_value = None
+    github = _github_mock()
     github.open_spec_pr.return_value = PullRequestInfo(
         number=4,
         html_url="https://github.com/pete-leese/agentic-repo-vending/pull/4",

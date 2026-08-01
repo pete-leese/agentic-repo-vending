@@ -34,6 +34,7 @@ from repo_vendor.naming import (
 from repo_vendor.observability import record_eval, record_vend, span
 from repo_vendor.readme_gen import resolve_vended_readme
 from repo_vendor.spec import (
+    find_duplicate_proposed_name,
     format_spec_pr_body,
     format_spec_pr_title,
     request_rel_path,
@@ -112,6 +113,61 @@ def _failure_markdown(
             "See `rules/naming.md`.",
         ]
     )
+    return "\n".join(lines)
+
+
+def _duplicate_name_markdown(
+    proposed_name: str,
+    *,
+    conflicting_issue_key: str | None = None,
+    github_exists: bool = False,
+    github_owner: str = "",
+    confidence: float | None = None,
+    cursor_agent_id: str | None = None,
+    cursor_agent_url: str | None = None,
+) -> str:
+    lines = [
+        "## Repo vend proposal failed (duplicate name)",
+        "",
+        "No Spec Request PR was opened and no GitHub repository will be created.",
+        "",
+        f"Proposed name `{proposed_name}` is already taken.",
+        "",
+    ]
+    if conflicting_issue_key:
+        lines.extend(
+            [
+                f"- Spec Request `requests/{conflicting_issue_key}.yaml` "
+                f"(issue **{conflicting_issue_key}**) already uses `{proposed_name}`.",
+                "- Edit this ticket (different purpose / labels) and **re-propose**, "
+                "or close/supersede the conflicting request.",
+                "",
+            ]
+        )
+    if github_exists:
+        owner = github_owner or "github"
+        lines.extend(
+            [
+                f"- GitHub repository `{owner}/{proposed_name}` already exists.",
+                "- Choose a different name — there is **no post-create rename**.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "### Next step",
+            "",
+            "Update the ticket summary/description (or helper labels) so the proposed "
+            "name is unique, then re-trigger **propose**.",
+        ]
+    )
+    meta = _meta_lines(
+        confidence=confidence,
+        cursor_agent_id=cursor_agent_id,
+        cursor_agent_url=cursor_agent_url,
+    )
+    if meta:
+        lines.extend(["", "### Run", *meta])
     return "\n".join(lines)
 
 
@@ -423,6 +479,50 @@ def propose_issue(
         intent.proposed_name = name
         intent = reconcile_intent_from_proposed_name(intent)
         intent.confidence = derive_confidence(intent, gate_passed=True)
+
+        # Duplicate name gate: Spec Requests under requests/ are SoR for claimed names.
+        # Re-propose of the same issue_key is allowed; another Spec with the same
+        # proposed_name fails before opening a Spec PR.
+        try:
+            with GitHubClient(settings) as github:
+                existing_specs = github.list_control_plane_specs()
+                conflict = find_duplicate_proposed_name(name, issue_key=key, specs=existing_specs)
+                github_taken = False
+                if conflict is None:
+                    try:
+                        github_taken = github.repo_exists(name)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("repo_exists check failed for %s: %s", name, exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Duplicate-name Spec scan failed: %s", exc)
+            conflict = None
+            github_taken = False
+
+        if conflict is not None or github_taken:
+            comment = _duplicate_name_markdown(
+                name,
+                conflicting_issue_key=conflict.issue_key if conflict else None,
+                github_exists=github_taken,
+                github_owner=settings.github_owner,
+                confidence=intent.confidence,
+                cursor_agent_id=agent_id,
+                cursor_agent_url=agent_url,
+            )
+            record_vend(False, issue_key=key, reason="duplicate_name", repo=name)
+            return PhaseResult(
+                success=False,
+                outcome="error",
+                phase="propose",
+                issue_key=key,
+                proposed_name=name,
+                template=template,
+                message=comment,
+                confidence=intent.confidence,
+                cursor_agent_id=agent_id,
+                cursor_agent_url=agent_url,
+                jira=_error_plan(settings, comment),
+            )
+
         # Reasons must describe the *final* locked name/template (not a judge
         # essay that disagreed with extract while the gate published extract).
         reasons = list(verdict.reasons or [])
