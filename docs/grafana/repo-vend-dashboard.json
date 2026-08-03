@@ -536,7 +536,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "llm.tokens counter — empty until workflow calls record_tokens().",
+      "description": "From Cursor SDK RunResult.usage on extract + judge calls (local heuristic harness emits nothing).",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -560,8 +560,8 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (model) (rate({__name__=~\"repo_vend_llm_tokens(_total)?\", service_name=~\"$service\"}[$__rate_interval]))",
-          "legendFormat": "{{model}}",
+          "expr": "sum by (model, direction) (rate({__name__=~\"repo_vend_llm_tokens(_total)?\", service_name=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{model}} {{direction}}",
           "range": true,
           "refId": "A"
         }

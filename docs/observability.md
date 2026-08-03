@@ -26,9 +26,9 @@ OTLP names are prefixed `repo_vend_` and dots become underscores. Grafana may ad
 | `span.<phase>` | `repo_vend_span_<phase>_milliseconds_…` | histogram (ms) |
 | `eval.result` | `repo_vend_eval_result_total` | counter |
 | `vend.result` | `repo_vend_vend_result_total` | counter |
-| `llm.tokens` | `repo_vend_llm_tokens_total` | counter |
+| `llm.tokens` | `repo_vend_llm_tokens_total` | counter (`model`, `direction=input\|output`) |
 
-Useful labels: `issue_key`, `status`, `stage`, `model`, `reason`, `success`, `passed`.
+Useful labels: `issue_key`, `status`, `stage`, `model`, `direction`, `reason`, `success`, `passed`.
 
 ## Grafana dashboard
 

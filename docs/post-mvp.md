@@ -17,7 +17,7 @@ Signed off MVP first, then implement these. The MVP already leaves extension poi
 1. ~~Grafana dashboard panels~~ → [`docs/grafana/repo-vend-dashboard.json`](grafana/repo-vend-dashboard.json)
 2. HITL wait metrics (`hitl.latency_ms` / `hitl.result`)
 3. Optional real OTEL traces (today spans are duration histograms only)
-4. Wire `record_tokens()` so the tokens panel populates
+4. ~~Wire `record_tokens()`~~ → Cursor SDK `RunResult.usage` on extract/judge (heuristic harness: no tokens)
 
 ## 2. Additional AI harnesses
 

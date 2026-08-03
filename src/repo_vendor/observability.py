@@ -66,17 +66,31 @@ class LoggingMetricsSink(MetricsSink):
         )
 
     def record_tokens(self, *, model: str, input_tokens: int, output_tokens: int) -> None:
-        self.emit(
-            MetricEvent(
-                name="llm.tokens",
-                value=float(input_tokens + output_tokens),
-                attributes={
-                    "model": model,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                },
+        # Prefer direction labels over raw counts-as-labels (cardinality).
+        if input_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(input_tokens),
+                    attributes={"model": model, "direction": "input"},
+                )
             )
-        )
+        if output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(output_tokens),
+                    attributes={"model": model, "direction": "output"},
+                )
+            )
+        if not input_tokens and not output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=0.0,
+                    attributes={"model": model, "direction": "total"},
+                )
+            )
 
 
 class FanoutMetricsSink(MetricsSink):
@@ -183,17 +197,30 @@ class OtlpMetricsSink(MetricsSink):
         counter.add(event.value, attrs)
 
     def record_tokens(self, *, model: str, input_tokens: int, output_tokens: int) -> None:
-        self.emit(
-            MetricEvent(
-                name="llm.tokens",
-                value=float(input_tokens + output_tokens),
-                attributes={
-                    "model": model,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                },
+        if input_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(input_tokens),
+                    attributes={"model": model, "direction": "input"},
+                )
             )
-        )
+        if output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(output_tokens),
+                    attributes={"model": model, "direction": "output"},
+                )
+            )
+        if not input_tokens and not output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=0.0,
+                    attributes={"model": model, "direction": "total"},
+                )
+            )
 
     def flush(self, timeout_millis: int = 10_000) -> bool:
         return bool(self._provider.force_flush(timeout_millis=timeout_millis))
