@@ -1,0 +1,32 @@
+issue_key: REPO-28
+summary: generic repo for "payment services"
+description: ''
+intent:
+  project_type: generic
+  terraform_shape: null
+  platform: null
+  purpose: payment-services
+  proposed_name: payment-services
+  confidence: 0.85
+  missing_info: []
+  notes: Explicitly requested as a generic repo; no terraform/python signals or labels
+    present, so plain kebab naming with template-generic-repo applies. No specific
+    repo name was stated in the summary.
+proposed_name: payment-services
+template: template-generic-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket explicitly requests a generic repo with no terraform, python, or infra/module
+    signals.
+  - Purpose 'payment-services' is valid plain kebab-case for generic naming (no terraform-
+    or python- prefix required).
+  - Generic project type maps to template-generic-repo per repo-vend.yaml.
+  - No platform suffix required for generic repos; platform is null and appropriately
+    absent.
+  - "Deterministic gate locked `payment-services` \u2192 `template-generic-repo` (type=generic)."
+  missing_info: []
+status: proposed
+pr_url: null
+additional_context: ''
