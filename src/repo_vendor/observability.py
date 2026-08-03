@@ -386,7 +386,7 @@ def _strip_env_quotes(raw: str) -> str:
 
 
 def _service_name() -> str:
-    return os.environ.get("OTEL_SERVICE_NAME", "").strip() or "[REDACTED]"
+    return os.environ.get("OTEL_SERVICE_NAME", "").strip() or "agentic-repo-vending"
 
 
 def _base_metric_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
