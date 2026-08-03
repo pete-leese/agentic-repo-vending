@@ -1,0 +1,102 @@
+# Deterministic naming gate (machine-enforced).
+# Edit this file to change patterns, platforms, stopwords, and service→platform aliases.
+# Human/HITL prose stays in rules/naming.md. Templates/keywords stay in repo-vend.yaml.
+# Python only loads and enforces — it does not own these values.
+
+platforms:
+  - aws
+  - gcp
+  - azure
+
+# Repo names must match this after normalization (snake/spaces/CamelCase → kebab).
+kebab:
+  regex: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+
+# Reserved prefixes that generic names must not use.
+reserved_prefixes:
+  - terraform-
+  - python-
+
+# Name patterns. `{platforms}` expands to aws|gcp|azure from `platforms` above.
+# `{reserved_prefixes}` expands to a negative lookahead of reserved_prefixes.
+patterns:
+  terraform_module:
+    regex: '^terraform-module-(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)-(?P<platform>{platforms})$'
+    display: 'terraform-module-<name>-<platform>'
+  terraform_root:
+    regex: '^terraform-(?!module-)(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)$'
+    display: 'terraform-<name>'
+  python:
+    regex: '^python-(?P<purpose>[a-z0-9]+(?:-[a-z0-9]+)*)$'
+    display: 'python-<purpose-kebab>'
+  generic:
+    regex: '^(?!{reserved_prefixes})[a-z0-9]+(?:-[a-z0-9]+)*$'
+    display: 'plain kebab (no terraform-/python- prefix)'
+
+# Tokens stripped from purpose slugs ("give me a repo for GKE" → "gke").
+# Quote on/off/yes/no/true/false — unquoted YAML 1.1 treats them as booleans.
+purpose_stopwords:
+  - a
+  - an
+  - the
+  - for
+  - my
+  - "on"
+  - to
+  - of
+  - i
+  - we
+  - me
+  - need
+  - please
+  - create
+  - want
+  - give
+  - get
+  - make
+  - add
+  - new
+  - repo
+  - repository
+  - terraform
+  - module
+  - python
+  - generic
+  - aws
+  - gcp
+  - azure
+  - reusable
+  - project
+  - root
+  - something
+  - request
+  - vend
+
+# Cloud-specific services that imply a platform (word-boundary match, case-insensitive).
+platform_service_aliases:
+  aws:
+    - eks
+    - ecs
+    - ec2
+    - s3
+    - rds
+    - dynamodb
+    - lambda
+    - sqs
+    - sns
+    - cloudfront
+    - route53
+    - transit-gateway
+    - tgw
+  gcp:
+    - gke
+    - gcs
+    - bigquery
+    - cloud-run
+    - cloudrun
+    - gce
+    - pubsub
+  azure:
+    - aks
+    - azuread
+    - cosmosdb

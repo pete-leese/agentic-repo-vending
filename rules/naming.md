@@ -41,6 +41,8 @@ Status flow: **New Request** (create / re-propose) → propose → Keyword Appro
 
 Snake_case, spaces, and CamelCase are normalized to kebab-case before checks.
 
+**Machine-enforced patterns** live in [`rules/deterministic.yaml`](deterministic.yaml) (regexes, platforms, purpose stopwords, service→platform aliases). Edit that file to change the gate — do not hardcode patterns in Python. This markdown is the human/HITL explanation; keep it aligned when you change the YAML.
+
 | Type | Pattern | Example | When |
 |------|---------|---------|------|
 | Terraform module | `terraform-module-<name>-<platform>` | `terraform-module-s3-bucket-aws` | Terraform / infra module (incl. “EC2 module…”, “S3 module…”) |
@@ -62,11 +64,11 @@ Platforms: `aws` | `gcp` | `azure` (required for **terraform modules** only; not
 
 ### Platform from service name
 
-When `platform-*` / `aws|gcp|azure` is absent, derive platform from cloud-specific services (see `src/repo_vendor/platform_aliases.py`):
+When `platform-*` / `aws|gcp|azure` is absent, derive platform from cloud-specific services listed under `platform_service_aliases` in [`rules/deterministic.yaml`](deterministic.yaml) (examples below):
 
 | Service (examples) | Platform |
 |--------------------|----------|
-| EKS, ECS, EC2, S3, RDS, Lambda, DynamoDB, SQS, SNS, CloudFront, Route53 | `aws` |
+| EKS, ECS, EC2, S3, RDS, Lambda, DynamoDB, SQS, SNS, CloudFront, Route53, Transit Gateway / TGW | `aws` |
 | GKE, GCS, BigQuery, Cloud Run, GCE, Pub/Sub | `gcp` |
 | AKS, Azure AD, Cosmos DB | `azure` |
 
@@ -94,6 +96,6 @@ Path: `requests/<ISSUE-KEY>.yaml` on the control-plane repo. Frozen after propos
 
 1. **Orchestrator** (`claude-sonnet-5` by default in `repo-vend.yaml`) extracts intent — prompt: `evals/extract-intent.json`.
 2. **Judge** (`composer-2.5` by default) validates naming/template — prompt: `evals/judge-naming.json` (includes this file). Orchestrator and judge must be different model IDs.
-3. **Deterministic gate** must also pass (kebab + pattern + template map). LLM pass alone is not enough.
-4. Do not invent missing terraform shape; derive platform via labels, explicit cloud words, or service aliases above. Use **generic** (plain kebab + `template-generic-repo`) when the request is not clearly terraform or python — generic is **not** subject to terraform/python naming patterns.
+3. **Deterministic gate** must also pass (kebab + pattern + template map from [`rules/deterministic.yaml`](deterministic.yaml)). LLM pass alone is not enough.
+4. Do not invent missing terraform shape; derive platform via labels, explicit cloud words, or service aliases in the YAML. Use **generic** (plain kebab + `template-generic-repo`) when the request is not clearly terraform or python — generic is **not** subject to terraform/python naming patterns.
 5. Both LLM judge and deterministic gate must pass before opening a Spec PR / commenting a green proposal.

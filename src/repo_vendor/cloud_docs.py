@@ -1,9 +1,10 @@
 """Cloud documentation context for propose/evals/vend descriptions.
 
-Cloud Agents may enrich IssueSnapshot.additional_context via AWS Docs MCP,
-Azure MCP, or future GCP Developer Knowledge MCP. The CLI never calls those
-APIs — it only consumes an opaque digest and (for terraform modules) surfaces
-it on the post-vend board Description.
+Cloud Agents enrich IssueSnapshot.additional_context via AWS Docs MCP,
+Azure MCP, or future GCP docs MCP (e.g. a \"What is {service}?\" overview).
+The CLI never calls those APIs — it feeds the digest into evals, shows it on
+the proposal comment, freezes it on the Spec, and (for terraform modules)
+surfaces it on the post-vend board Description.
 """
 
 from __future__ import annotations
@@ -20,9 +21,10 @@ _CLOUD_SIGNAL = re.compile(
     r"\b("
     r"terraform|tf-module|module|"
     r"aws|gcp|azure|platform-aws|platform-gcp|platform-azure|"
-    r"eks|ecs|ec2|s3|rds|lambda|dynamodb|"
-    r"gke|gcs|bigquery|"
-    r"aks|cosmos"
+    r"eks|ecs|ec2|s3|rds|lambda|dynamodb|sqs|sns|cloudfront|route53|"
+    r"transit[\s-]?gateway|tgw|"
+    r"gke|gcs|bigquery|cloud[\s-]?run|pubsub|"
+    r"aks|cosmos|azure[\s-]?ad"
     r")\b",
     re.IGNORECASE,
 )
@@ -127,16 +129,19 @@ def is_terraform_module_spec(spec: SpecRequest) -> bool:
     return name.startswith("terraform-module-")
 
 
-def format_cloud_notes_section(context: str) -> list[str]:
-    """Markdown lines for the post-vend Description (caller decides when to include)."""
+def format_cloud_notes_section(
+    context: str,
+    *,
+    heading: str = "### Cloud service overview",
+) -> list[str]:
+    """Markdown lines for proposal comments / post-vend Description."""
     normalized = normalize_additional_context(context)
     if not normalized:
         return []
     return [
-        "### Cloud documentation notes",
+        heading,
         "",
-        "Factual notes gathered at propose time from cloud documentation MCP "
-        "(advisory — naming still follows `rules/naming.md`):",
+        "From cloud documentation MCP (advisory — naming still follows `rules/naming.md`):",
         "",
         normalized,
         "",

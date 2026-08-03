@@ -85,17 +85,23 @@ Templates are public GitHub **template repositories** under `github.owner`:
 ### Add a new type (advanced)
 
 1. Add a template key under `github.templates` and a local tree under `templates/`.
-2. Extend `ProjectType` + naming patterns in code / `rules/naming.md`.
-3. Update eval JSON `allowed_values` / `allowed_templates`.
-4. Run `./scripts/publish_templates.sh` (or `--update`).
+2. Extend patterns / platforms in [`rules/deterministic.yaml`](../rules/deterministic.yaml) and explain them in [`rules/naming.md`](../rules/naming.md).
+3. Extend `ProjectType` (and related enums) in code only if a wholly new type is required.
+4. Update eval JSON `allowed_values` / `allowed_templates`.
+5. Run `./scripts/publish_templates.sh` (or `--update`).
 
 ### Generic template
 
 Use when the request is not specifically Python or Terraform (label `type-generic`, or leave type unset so `default_project_type: generic` applies). Local scaffold: [`templates/template-generic-repo/`](../templates/template-generic-repo/). Naming: plain kebab-case (not `python-` / `terraform-` prefixed), e.g. `billing-gateway`.
 
-## Naming and HITL rules — `rules/naming.md`
+## Naming and HITL rules
 
-Agent-facing policy (patterns, Keyword Approval, labels). The deterministic gate in `repo_vendor` must stay aligned when you change patterns.
+| File | Role |
+|------|------|
+| [`rules/deterministic.yaml`](../rules/deterministic.yaml) | **Machine gate** — regex patterns, platforms, purpose stopwords, service→platform aliases. Edit here to change enforcement. |
+| [`rules/naming.md`](../rules/naming.md) | Human / agent HITL prose (Keyword Approval, labels, flow). Keep aligned with the YAML. |
+
+The Python gate only loads and enforces `deterministic.yaml`; it does not own the pattern strings.
 
 ## Eval prompts — `evals/*.json`
 

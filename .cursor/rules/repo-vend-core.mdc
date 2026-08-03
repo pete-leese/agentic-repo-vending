@@ -10,7 +10,8 @@ Follow [`rules/naming.md`](../../rules/naming.md) and [`repo-vend.yaml`](../../r
 1. Flow: **propose** → Keyword Approval → **vend** from `requests/<KEY>.yaml`. No post-create rename.
 2. Jira board I/O: **Atlassian** tools only — never call Jira REST from the CLI.
 3. Do not invent naming/HITL behavior; read the naming rule and config first.
-4. Never commit `.env`, API keys, or real webhook Bearer tokens.
-5. Webhook Bearer ≠ global `CURSOR_API_KEY`.
-6. CI (`make ci`) is the hard gate; Cursor hooks move feedback earlier.
-7. Cloud-docs MCP (`additional_context`) is advisory only — never overrides naming or Keyword Approval.
+4. Deterministic patterns live in [`rules/deterministic.yaml`](../../rules/deterministic.yaml) — edit YAML, not Python regexes.
+5. Never commit `.env`, API keys, or real webhook Bearer tokens.
+6. Webhook Bearer ≠ global `CURSOR_API_KEY`.
+7. CI (`make ci`) is the hard gate; Cursor hooks move feedback earlier.
+8. Cloud-docs MCP (`additional_context`) is advisory only — never overrides naming or Keyword Approval.

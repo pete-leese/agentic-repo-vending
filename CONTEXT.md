@@ -50,7 +50,7 @@ Plain kebab-case without `terraform-` or `python-` prefixes (example: `billing-g
 A judgment that the proposed Repo Name and chosen Repo Template match the Repo Vend Request. Uses a model distinct from the orchestrator, plus deterministic naming rules. Both must pass before a Spec Request PR is opened.
 
 ### Deterministic Gate
-Non-LLM rules (kebab-case and naming patterns, template mapping). A failure here blocks propose (no Spec PR) even if the LLM eval judge passes.
+Non-LLM rules (kebab-case and naming patterns, template mapping) loaded from **`rules/deterministic.yaml`**. A failure here blocks propose (no Spec PR) even if the LLM eval judge passes.
 
 ### Repo Vended Marker
 The Jira label **`repo-vended`**, applied after a successful create. Prevents duplicate vending (idempotency).
