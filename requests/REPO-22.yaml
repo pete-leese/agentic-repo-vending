@@ -30,7 +30,7 @@ evals:
     \ (type=terraform)."
   missing_info: []
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/30
 additional_context: '### What is Azure Private Link?
 
   - Azure Private Link enables access to Azure PaaS services (Storage, SQL Database,
