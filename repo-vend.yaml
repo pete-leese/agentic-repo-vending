@@ -49,6 +49,9 @@ models:
 cloud_docs:
   enabled: true
   max_chars: 4000
+  # When Automation leaves additional_context empty, propose fetches a short
+  # AWS docs overview via the public search API (fail-open). Prefer MCP when available.
+  cli_fallback: true
   # Prefill / Automation: enable these MCP servers on the Cloud Agent / Automation.
   # Catalog names must match cursor.com/agents or Dashboard → Integrations & MCP.
   providers:

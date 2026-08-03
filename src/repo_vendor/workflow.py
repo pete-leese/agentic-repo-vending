@@ -6,6 +6,7 @@ import logging
 from typing import Literal
 
 from repo_vendor.approval import is_approval_comment
+from repo_vendor.aws_docs_fetch import maybe_enrich_aws_docs_context
 from repo_vendor.cloud_docs import (
     format_cloud_notes_section,
     is_terraform_module_spec,
@@ -411,6 +412,9 @@ def propose_issue(
 
         harness = get_harness(settings)
         docs_context = normalize_additional_context(issue.additional_context)
+        if not docs_context:
+            # Automation may skip MCP — CLI fetches a short AWS overview when possible.
+            docs_context = maybe_enrich_aws_docs_context(issue)
         with span("extract", model=settings.orchestrator_model):
             intent = extract_intent_with_harness(
                 harness,
