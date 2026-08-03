@@ -1,6 +1,7 @@
 """Deterministic naming and template selection (hard gate).
 
-Human/agent-facing conventions live in ``rules/naming.md`` and ``repo-vend.yaml``.
+Machine rules: ``rules/deterministic.yaml`` (patterns, platforms, stopwords, aliases).
+Human/HITL prose: ``rules/naming.md``. Project config: ``repo-vend.yaml``.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from __future__ import annotations
 import re
 
 from repo_vendor.config import Settings, get_settings
+from repo_vendor.deterministic_rules import _LazyPattern, display_for, load_deterministic_rules
 from repo_vendor.models import (
     DeterministicCheckResult,
     EvalVerdict,
@@ -20,57 +22,17 @@ from repo_vendor.platform_aliases import infer_platform_from_text
 
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 _MULTI_DASH = re.compile(r"-{2,}")
-_KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
-TF_MODULE = re.compile(
-    r"^terraform-module-(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)-(?P<platform>aws|gcp|azure)$"
-)
-TF_ROOT = re.compile(r"^terraform-(?!module-)(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)$")
-PYTHON_NAME = re.compile(r"^python-(?P<purpose>[a-z0-9]+(?:-[a-z0-9]+)*)$")
-# Generic: plain kebab, not reserved type prefixes
-GENERIC_NAME = re.compile(r"^(?!terraform-|python-)[a-z0-9]+(?:-[a-z0-9]+)*$")
+# Compiled from rules/deterministic.yaml (lazy so edits reload after cache clear).
+TF_MODULE = _LazyPattern("terraform_module")
+TF_ROOT = _LazyPattern("terraform_root")
+PYTHON_NAME = _LazyPattern("python")
+GENERIC_NAME = _LazyPattern("generic")
+_KEBAB = _LazyPattern("kebab")
 
-# Ticket filler that must never become part of a repo purpose slug.
-# Example: "give me a repo for a terraform GKE module" → purpose "gke", not "give-me-gke".
-_PURPOSE_STOPWORDS = frozenset(
-    {
-        "a",
-        "an",
-        "the",
-        "for",
-        "my",
-        "on",
-        "to",
-        "of",
-        "i",
-        "we",
-        "me",
-        "need",
-        "please",
-        "create",
-        "want",
-        "give",
-        "get",
-        "make",
-        "add",
-        "new",
-        "repo",
-        "repository",
-        "terraform",
-        "module",
-        "python",
-        "generic",
-        "aws",
-        "gcp",
-        "azure",
-        "reusable",
-        "project",
-        "root",
-        "something",
-        "request",
-        "vend",
-    }
-)
+
+def _purpose_stopwords() -> frozenset[str]:
+    return load_deterministic_rules().purpose_stopwords
 
 
 def to_kebab(value: str) -> str:
@@ -92,7 +54,8 @@ def clean_purpose_slug(value: str | None) -> str | None:
     """Kebab-ize and drop conversational filler tokens from a purpose slug."""
     if not value:
         return None
-    parts = [p for p in to_kebab(value).split("-") if p and p not in _PURPOSE_STOPWORDS]
+    stop = _purpose_stopwords()
+    parts = [p for p in to_kebab(value).split("-") if p and p not in stop]
     return "-".join(parts) or None
 
 
@@ -473,9 +436,11 @@ def validate_name_and_template(
         if intent.project_type == ProjectType.TERRAFORM:
             errors.append(
                 "Terraform requests need a purpose slug and shape "
-                "(module vs root). Modules also need a platform (aws|gcp|azure). "
+                "(module vs root). Modules also need a platform ("
+                + "|".join(load_deterministic_rules().platforms)
+                + "). "
                 "Platform can come from labels (platform-aws), the words aws/gcp/azure, "
-                "or a cloud-specific service (EKS→aws, GKE→gcp, AKS→azure, S3→aws). "
+                "or a cloud-specific service (see rules/deterministic.yaml aliases). "
                 "Example: 'terraform module for EKS' or label tf-module + platform-aws."
             )
         elif intent.project_type == ProjectType.PYTHON:
@@ -499,7 +464,7 @@ def validate_name_and_template(
             if not m:
                 errors.append(
                     f"Terraform module names must match "
-                    f"`terraform-module-<name>-<platform>`; got `{name}`."
+                    f"`{display_for('terraform_module')}`; got `{name}`."
                 )
             elif intent.platform and m.group("platform") != intent.platform.value:
                 errors.append(
@@ -509,7 +474,7 @@ def validate_name_and_template(
         elif intent.terraform_shape == TerraformShape.ROOT or TF_ROOT.fullmatch(name):
             if not TF_ROOT.fullmatch(name):
                 errors.append(
-                    f"Terraform root names must match `terraform-<name>` "
+                    f"Terraform root names must match `{display_for('terraform_root')}` "
                     f"(not terraform-module-...); got `{name}`."
                 )
         else:
@@ -520,7 +485,7 @@ def validate_name_and_template(
 
     if intent.project_type == ProjectType.PYTHON:
         if not PYTHON_NAME.fullmatch(name):
-            errors.append(f"Python names must match `python-<purpose-kebab>`; got `{name}`.")
+            errors.append(f"Python names must match `{display_for('python')}`; got `{name}`.")
         if name.startswith("terraform-"):
             errors.append("Python ticket produced a terraform-prefixed name.")
 
@@ -539,7 +504,11 @@ def validate_name_and_template(
     ):
         m = TF_MODULE.fullmatch(name)
         if not m:
-            errors.append("Terraform modules require platform aws|gcp|azure.")
+            errors.append(
+                "Terraform modules require platform "
+                + "|".join(load_deterministic_rules().platforms)
+                + "."
+            )
 
     template = select_template(intent.project_type, settings)
     passed = len(errors) == 0

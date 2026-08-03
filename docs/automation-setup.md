@@ -47,15 +47,30 @@ Jira comments must include Confidence (from CLI) and a hyperlink to https://curs
 If comment_markdown is missing the Cursor agent line, append:
 - **Cursor agent:** [`bc-…`](https://cursor.com/agents/bc-…)
 
-## Cloud documentation context (propose only)
+## Cloud documentation context (propose — required for terraform / infra modules)
 
-When the ticket looks like terraform / infra module / cloud platform work (labels type-terraform|tf-module|platform-*, words terraform/module, or services like S3/EKS/AKS/GKE):
+When the ticket is terraform / module / cloud infra (named services count — e.g. Transit Gateway, S3, EKS, AKS, GKE):
 
-1. If AWS Documentation MCP is enabled and the ticket implies aws (or an AWS service): search/read a short factual digest (what the service is; constraints useful for purpose/platform). Do NOT propose a repo name from docs.
-2. If Azure MCP is enabled and the ticket implies azure (or an Azure service): likewise, a short factual digest only.
-3. Cap the digest (~4000 chars; see cloud_docs.max_chars). Prefer bullets over long page dumps.
-4. Put the digest in IssueSnapshot.additional_context (not in description). If MCP is unavailable or the ticket is clearly python/generic with no cloud signal, leave additional_context empty / omit it.
-5. Never let docs override Keyword Approval, naming patterns, or invent terraform-module-* names — the CLI deterministic gate remains authoritative.
+1. Identify the primary cloud service from the summary/description (e.g. "Transit Gateway", "S3").
+2. **Before** writing `/tmp/issue.json`, call the matching docs MCP (do not skip this when tools are enabled):
+   - **AWS** (aws word, platform-aws, or AWS service): use AWS Documentation MCP —
+     `search_documentation` for `What is {service}?` (and/or the service product name), then
+     `read_documentation` / `read_sections` on the best overview URL if needed.
+   - **Azure** similarly via Azure MCP when azure is implied.
+3. Put a short overview into `additional_context` using this shape:
+
+   ```text
+   ### What is {Service}?
+   - <one-line definition>
+   - <primary use / why teams provision it>
+   - <platform: aws|gcp|azure>
+   - Docs: <official URL>
+   ```
+
+   Prefer 3–6 bullets; cap ~4000 chars (`cloud_docs.max_chars`). Do **not** invent a repo name from docs.
+4. If MCP tools are missing or fail, leave `additional_context` empty and continue propose — do not block the gate.
+5. Store the digest **only** in `IssueSnapshot.additional_context` (not the Jira description). The CLI includes it on the proposal comment and freezes it on the Spec; terraform-module vend Description also shows it.
+6. Never let docs override Keyword Approval, naming patterns, or invent `terraform-module-*` names — the CLI deterministic gate remains authoritative.
 
 ## Propose (action == "propose")
 
@@ -63,18 +78,18 @@ Triggered on: issue create, summary/description edit, or helper label add (platf
 
 1. Using Atlassian tools, load the issue (summary, description, status, labels).
 2. If label "repo-vended" is present: add a short comment that propose is skipped (idempotent) and stop.
-3. Optionally gather Cloud documentation context (see above).
-4. Write /tmp/issue.json as IssueSnapshot JSON from step 1 (+ optional additional_context), for example:
-   {"key":"REPO-N","summary":"...","description":"...","status":"New Request","labels":["..."],"additional_context":"..."}
+3. **Required for terraform/infra modules:** gather Cloud documentation context (see above — "What is {service}?" overview via AWS Docs / Azure MCP).
+4. Write /tmp/issue.json as IssueSnapshot JSON from step 1 (+ additional_context when gathered), for example:
+   {"key":"REPO-N","summary":"...","description":"...","status":"New Request","labels":["..."],"additional_context":"### What is Transit Gateway?\n- ..."}
 5. Resolve AGENT_ID (bc-…) for this run (see above).
 6. Run:
    python3 -m repo_vendor propose --issue-file /tmp/issue.json --cursor-agent-id "$AGENT_ID" --json
 7. Parse stdout JSON. Apply result.jira exactly with Atlassian tools:
    - labels_remove / labels_add (on success: add repo-vend-proposed; remove repo-vend-error and other outcome error-state labels)
    - transition_to when set
-   - comment_markdown (preserve markdown; must show Confidence + Cursor agent link)
+   - comment_markdown (preserve markdown; must show Confidence + Cursor agent link; includes Cloud service overview when additional_context was set)
 8. Reply briefly (outcome, proposed name, Spec PR URL if any). Never print secrets.
-9. Re-propose is expected when humans add context; update Spec PR / proposal comment from the latest extract (include refreshed additional_context when cloud docs still apply).
+9. Re-propose is expected when humans add context; update Spec PR / proposal comment from the latest extract (refresh additional_context when cloud docs still apply).
 
 ## Vend (action == "vend")
 

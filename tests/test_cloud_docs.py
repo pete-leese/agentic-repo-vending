@@ -54,6 +54,25 @@ def test_ticket_suggests_cloud_docs_for_module_not_generic():
     assert ticket_suggests_cloud_docs(generic) is False
 
 
+def test_ticket_suggests_cloud_docs_for_transit_gateway():
+    issue = IssueSnapshot(
+        key="R3",
+        summary="create a repo for transit gateway terraform module",
+        labels=[],
+    )
+    assert ticket_suggests_cloud_docs(issue) is True
+
+
+def test_aliases_include_transit_gateway():
+    from repo_vendor.deterministic_rules import clear_deterministic_rules_cache
+    from repo_vendor.models import Platform
+    from repo_vendor.platform_aliases import infer_platform_from_text
+
+    clear_deterministic_rules_cache()
+    assert infer_platform_from_text("transit gateway terraform module") == Platform.AWS
+    assert infer_platform_from_text("tgw module") == Platform.AWS
+
+
 def test_format_prompts_include_additional_context():
     _, extract_user = format_user_prompt(
         "extract-intent",
@@ -77,7 +96,11 @@ def test_format_prompts_include_additional_context():
 
 def test_propose_freezes_additional_context_on_spec():
     settings = _settings()
-    digest = "Amazon S3 is object storage. Platform: aws."
+    digest = (
+        "### What is Amazon S3?\n"
+        "- Object storage service on AWS.\n"
+        "- Docs: https://docs.aws.amazon.com/s3/"
+    )
     issue = IssueSnapshot(
         key="REPO-CTX",
         summary="terraform module for S3",
@@ -102,12 +125,14 @@ def test_propose_freezes_additional_context_on_spec():
     yaml_body = github.open_spec_pr.call_args.kwargs["content"]
     assert "additional_context:" in yaml_body
     assert "Amazon S3" in yaml_body
+    assert "Cloud service overview" in result.jira.comment_markdown
+    assert "What is Amazon S3?" in result.jira.comment_markdown
 
 
 def test_vend_terraform_module_description_includes_cloud_notes():
     settings = _settings()
     issue = IssueSnapshot(key="REPO-TF", labels=["repo-vend-proposed"])
-    digest = "AKS is Azure Kubernetes Service. Platform: azure."
+    digest = "### What is AKS?\n- AKS is Azure Kubernetes Service.\n- Platform: azure."
     spec = SpecRequest(
         issue_key="REPO-TF",
         summary="terraform module for AKS",
@@ -125,7 +150,7 @@ def test_vend_terraform_module_description_includes_cloud_notes():
         additional_context=digest,
     )
     assert is_terraform_module_spec(spec) is True
-    assert "Cloud documentation notes" in "\n".join(format_cloud_notes_section(digest))
+    assert "Cloud service overview" in "\n".join(format_cloud_notes_section(digest))
 
     github = MagicMock()
     github.__enter__.return_value = github
@@ -147,7 +172,7 @@ def test_vend_terraform_module_description_includes_cloud_notes():
 
     assert result.success is True
     assert result.jira.set_description
-    assert "Cloud documentation notes" in result.jira.set_description
+    assert "Cloud service overview" in result.jira.set_description
     assert "AKS is Azure Kubernetes Service" in result.jira.set_description
 
 

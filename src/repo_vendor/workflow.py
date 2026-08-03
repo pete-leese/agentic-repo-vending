@@ -190,6 +190,7 @@ def _proposal_markdown(
     confidence: float | None = None,
     cursor_agent_id: str | None = None,
     cursor_agent_url: str | None = None,
+    additional_context: str = "",
 ) -> str:
     eval_ok = llm_passed and deterministic_passed
     indicator = "PASSED" if eval_ok else "FAILED"
@@ -216,6 +217,7 @@ def _proposal_markdown(
         lines.extend(["", "### Reasons", *[f"- {r}" for r in reasons]])
     if missing:
         lines.extend(["", "### Missing", *[f"- {m}" for m in missing]])
+    lines.extend(format_cloud_notes_section(additional_context))
     lines.extend(
         [
             "",
@@ -616,6 +618,7 @@ def propose_issue(
             confidence=intent.confidence,
             cursor_agent_id=agent_id,
             cursor_agent_url=agent_url,
+            additional_context=docs_context,
         )
         record_vend(True, issue_key=key, repo=name, phase="propose")
         return PhaseResult(

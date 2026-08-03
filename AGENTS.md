@@ -14,6 +14,7 @@ Enable the **Atlassian** tool. For terraform-module enrichment, also enable **AW
 | [`docs/conventions/testing.md`](docs/conventions/testing.md) | Tests / coverage / mypy |
 | [`docs/conventions/pr.md`](docs/conventions/pr.md) | PR expectations |
 | [`rules/naming.md`](rules/naming.md) | Naming + Keyword Approval HITL |
+| [`rules/deterministic.yaml`](rules/deterministic.yaml) | Machine naming gate (patterns, platforms, aliases) |
 | [`repo-vend.yaml`](repo-vend.yaml) | Board, keywords, templates, models, cloud_docs MCP |
 | [`evals/`](evals/) | Extract + judge prompts |
 | [`requests/`](requests/) | Spec Request YAML (via PR) |
