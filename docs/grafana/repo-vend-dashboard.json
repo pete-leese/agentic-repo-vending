@@ -531,7 +531,7 @@
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
       "id": 104,
-      "title": "Tokens (when wired)",
+      "title": "LLM tokens",
       "type": "row"
     },
     {
