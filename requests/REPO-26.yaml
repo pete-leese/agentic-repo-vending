@@ -1,0 +1,50 @@
+issue_key: REPO-26
+summary: terraform repo for a tf module "vpc endpoints" AWS
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: vpc-endpoints
+  proposed_name: terraform-module-vpc-endpoints-aws
+  confidence: 0.9
+  missing_info: []
+  notes: VPC Endpoints (interface via PrivateLink or gateway for S3/DynamoDB) enable
+    private AWS service access from a VPC without an IGW/NAT; platform confirmed aws
+    per summary and docs (docs.aws.amazon.com/vpc/latest/privatelink).
+proposed_name: terraform-module-vpc-endpoints-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Request explicitly asks for a Terraform module repo for VPC endpoints on AWS.
+  - Intent has terraform_shape=module and platform=aws; no platform-* label required
+    when platform is set.
+  - Proposed name terraform-module-vpc-endpoints-aws matches the required pattern
+    terraform-module-<purpose>-<platform>.
+  - Purpose vpc-endpoints is valid kebab-case and aligns with the ticket summary and
+    AWS VPC endpoint documentation.
+  - Terraform project type maps to template-terraform-repo per repo-vend naming rules.
+  - "Deterministic gate locked `terraform-module-vpc-endpoints-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/35
+additional_context: '### What is VPC Endpoints?
+
+  - VPC endpoints let resources in your VPC connect to AWS services (or other VPC-hosted
+  services) using private IP addresses instead of the public internet.
+
+  - **Interface endpoints** (AWS PrivateLink) create ENIs in your subnets and route
+  traffic to supported AWS services without an internet gateway or NAT device.
+
+  - **Gateway endpoints** provide free, route-table-based private access to Amazon
+  S3 and DynamoDB (no PrivateLink ENIs).
+
+  - Teams provision VPC endpoints to keep traffic on the AWS network, meet security/compliance
+  requirements, and reduce NAT/IGW exposure for workloads in private subnets.
+
+  - Platform: **aws**
+
+  - Docs: https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html'
