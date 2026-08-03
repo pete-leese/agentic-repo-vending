@@ -1,0 +1,36 @@
+issue_key: REPO-19
+summary: create a repo for transit gateway terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: transit-gateway
+  proposed_name: terraform-module-transit-gateway-aws
+  confidence: 0.85
+  missing_info: []
+  notes: Explicit 'terraform module' wording confirms terraform + module shape. 'Transit
+    Gateway' is an AWS-specific networking service (not in GCP/Azure under that name),
+    so platform=aws is inferred despite no platform-* label or explicit cloud word.
+    No proposed_name stated in ticket; naming should follow terraform-module-transit-gateway-aws
+    pattern at propose time.
+proposed_name: terraform-module-transit-gateway-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket explicitly requests a terraform module; transit gateway is infra module
+    phrasing.
+  - Terraform shape is module; platform aws is valid via Transit Gateway service alias
+    (AWS-specific service).
+  - "intent.platform is set to aws \u2014 no platform-* label required."
+  - Proposed name terraform-module-transit-gateway-aws matches terraform-module-<purpose>-<platform>
+    pattern.
+  - Terraform project type maps to template-terraform-repo.
+  - "Deterministic gate locked `terraform-module-transit-gateway-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/25
+additional_context: ''
