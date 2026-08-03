@@ -1,0 +1,52 @@
+issue_key: REPO-30
+summary: repo for NLB AWS service for terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: nlb
+  proposed_name: terraform-module-nlb-aws
+  confidence: 0.9
+  missing_info: []
+  notes: 'AWS NLB is a Layer 4 (TCP/UDP/QUIC) Elastic Load Balancing service for high-throughput,
+    low-latency routing to targets (EC2/ECS/EKS/IP); confirms platform=aws. Suggested
+    name per naming.md: terraform-module-nlb-aws.'
+proposed_name: terraform-module-nlb-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket requests a Terraform module for AWS NLB; intent has project_type=terraform,
+    terraform_shape=module, platform=aws, and purpose=nlb.
+  - Platform aws is explicit in the summary and intent.platform; no platform-* label
+    is required.
+  - Cloud docs confirm NLB is AWS Elastic Load Balancing; purpose and platform are
+    consistent.
+  - Proposed name terraform-module-nlb-aws matches terraform-module-<purpose>-<platform>
+    (kebab-case).
+  - Terraform module requests use template-terraform-repo per repo-vend.yaml.
+  - "Deterministic gate locked `terraform-module-nlb-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: null
+additional_context: '### What is Network Load Balancer (NLB)?
+
+  - AWS Elastic Load Balancing service that operates at Layer 4 (TCP/UDP/QUIC) of
+  the OSI model, routing traffic to registered targets in target groups.
+
+  - Primary use: high-throughput, low-latency load balancing for TCP/UDP workloads
+  (e.g. microservices, containers, VPC endpoints) where connection-level routing and
+  static IPs per AZ are needed.
+
+  - Handles millions of requests per second; supports cross-zone load balancing, health
+  checks, TLS termination, and target types including instances, IPs, and ALBs.
+
+  - Teams provision NLBs to distribute traffic across EC2, ECS, EKS, or IP targets
+  with predictable performance and fault tolerance across Availability Zones.
+
+  - Platform: aws
+
+  - Docs: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html'
