@@ -188,13 +188,14 @@ def doctor() -> None:
 
 @app.command("metrics-smoke")
 def metrics_smoke() -> None:
-    """Emit one test metric and flush to OTLP (diagnose Grafana Cloud wiring)."""
-    from repo_vendor.observability import MetricEvent, get_metrics_sink
+    """Emit test metrics and flush to OTLP (diagnose Grafana Cloud wiring)."""
+    from repo_vendor.observability import MetricEvent, _service_name, get_metrics_sink
 
     if not otlp_endpoint_configured():
         console.print("[red]OTEL_EXPORTER_OTLP_ENDPOINT is not set[/red]")
         raise typer.Exit(1)
     sink = get_metrics_sink()
+    svc = _service_name()
     sink.emit(
         MetricEvent(
             name="span.smoke",
@@ -206,14 +207,34 @@ def metrics_smoke() -> None:
         MetricEvent(
             name="eval.result",
             value=1.0,
-            attributes={"passed": True, "stage": "smoke"},
+            attributes={"passed": True, "stage": "smoke", "issue_key": "SMOKE"},
         )
     )
+    sink.emit(
+        MetricEvent(
+            name="vend.result",
+            value=1.0,
+            attributes={
+                "success": True,
+                "phase": "propose",
+                "issue_key": "SMOKE",
+            },
+        )
+    )
+    sink.record_tokens(model="smoke-model", input_tokens=42, output_tokens=7)
     try:
         ok = flush_metrics(timeout_millis=15_000)
-        console.print(f"flush_ok={ok}")
+        console.print(f"flush_ok={ok} service_name={svc}")
         console.print(
-            "If Grafana Explore still empty, check agent logs for OTLP 401 "
+            'Grafana Explore (Prometheus datasource for this stack): {__name__=~"repo_vend.*"}'
+        )
+        console.print(
+            "If panels stay empty: re-import docs/grafana/repo-vend-dashboard.json, "
+            "pick the Grafana Cloud Prometheus/Mimir datasource (not Application "
+            "Observability), set time range to last 1h, wait ~1–2 min after flush."
+        )
+        console.print(
+            "If flush_ok=True but Explore is empty, check agent logs for OTLP 401 "
             "and strip quotes from OTEL_EXPORTER_OTLP_HEADERS."
         )
         raise typer.Exit(0 if ok else 1)

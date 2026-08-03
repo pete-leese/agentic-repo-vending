@@ -60,4 +60,14 @@ uv run python -m repo_vendor metrics-smoke
 
 CLI flushes and shuts down the meter provider after each propose/vend so short Cloud Agent runs still export.
 
-Propose **does** emit metrics (`span.propose`, eval, `vend.result`). Application Observability / Traces stays empty until we export OTEL traces.
+Propose **does** emit metrics (`span.propose`, eval, `vend.result`, `llm.tokens`). Application Observability / Traces stays empty until we export OTEL traces.
+
+## Troubleshooting empty Grafana panels
+
+1. **Datasource** — OTLP metrics land in your stack’s **Prometheus / Mimir** datasource (Grafana Cloud → Connections → Prometheus). They do **not** appear under Application Observability or Traces.
+2. **Re-import dashboard** — After updates, re-import [`docs/grafana/repo-vend-dashboard.json`](grafana/repo-vend-dashboard.json). Older versions filtered on `service_name`; if that label was missing from OTLP series, every panel returned no data.
+3. **Explore first** — Run `metrics-smoke`, wait 1–2 minutes, then Explore with `{__name__=~"repo_vend.*"}`. If Explore has data but the dashboard does not, re-import the dashboard JSON.
+4. **OTEL secrets on the Cloud Agent Environment** — Automations inherit the linked environment’s secrets. `OTEL_EXPORTER_OTLP_*` must be set there (not only locally). `doctor` / propose logs should show `OTLP metrics enabled endpoint=…`.
+5. **Auth header quotes** — Do not wrap `OTEL_EXPORTER_OTLP_HEADERS` in quotes. Trailing `"` causes Grafana **401**; `force_flush` may still report success while nothing is stored.
+6. **Time range** — Set dashboard to **Last 24 hours** (or since your last propose run).
+7. **Boolean labels** — Eval/vend counters use `passed="true"` / `success="true"` string labels in PromQL. SDK exports these as lowercase strings for compatibility.
