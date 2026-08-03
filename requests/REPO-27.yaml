@@ -1,0 +1,52 @@
+issue_key: REPO-27
+summary: AWS ALB terraform module repo
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: alb
+  proposed_name: terraform-module-alb-aws
+  confidence: 0.92
+  missing_info: []
+  notes: 'Explicit ''AWS'' + ''terraform module'' in summary confirm type/shape/platform.
+    Cloud docs confirm ALB is an AWS Elastic Load Balancing service (application-layer
+    traffic distribution via listeners/target groups); platform=aws corroborated.
+    Suggested name per naming.md pattern: terraform-module-alb-aws.'
+proposed_name: terraform-module-alb-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket explicitly requests an AWS ALB terraform module; intent confirms project_type=terraform,
+    terraform_shape=module, platform=aws, purpose=alb.
+  - Proposed name terraform-module-alb-aws matches the required terraform-module-<purpose>-<platform>
+    pattern in kebab-case.
+  - ALB (Application Load Balancer) is an AWS Elastic Load Balancing service; cloud
+    docs corroborate platform=aws.
+  - Terraform module requests use template-terraform-repo per repo-vend naming rules.
+  - "missing_info is empty and platform is established via explicit AWS wording and\
+    \ service alias\u2014no platform-* label required."
+  - "Deterministic gate locked `terraform-module-alb-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/37
+additional_context: '### What is Application Load Balancer (ALB)?
+
+  - An AWS Elastic Load Balancing service that distributes incoming application traffic
+  across multiple targets (e.g., EC2 instances) in multiple Availability Zones.
+
+  - Operates at the application layer (HTTP/HTTPS), supporting path-based routing,
+  host-based routing, and advanced request routing via listener rules.
+
+  - Core components: load balancer, listeners (protocol/port + rules), and target
+  groups (registered targets + health checks).
+
+  - Primary use: improve application availability and scalability by load balancing
+  web traffic and routing requests to healthy backend targets.
+
+  - Platform: aws
+
+  - Docs: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html'
