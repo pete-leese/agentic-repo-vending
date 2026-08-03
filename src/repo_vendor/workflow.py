@@ -6,6 +6,12 @@ import logging
 from typing import Literal
 
 from repo_vendor.approval import is_approval_comment
+from repo_vendor.cloud_docs import (
+    format_cloud_notes_section,
+    is_terraform_module_spec,
+    normalize_additional_context,
+    resolve_additional_context,
+)
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.cursor_run import format_cursor_agent_line, resolve_cursor_agent
 from repo_vendor.github_client import GitHubClient
@@ -216,9 +222,6 @@ def _proposal_markdown(
             "### Approve",
             "Reply to this proposal (or add a new top-level comment) with one of: "
             "`approved`, `lgtm`, `looks good`, `ship it`, or `+1`.",
-            "Threaded replies are fine — the keyword only needs to appear in your reply text.",
-            "That merges the Spec (if open) and creates the GitHub repository.",
-            "There is no post-create rename — fix the ticket and re-propose if the name is wrong.",
         ]
     )
     return "\n".join(lines)
@@ -316,6 +319,17 @@ def _approved_work_description(
             "",
             spec.description.strip() or "(no original description)",
             "",
+        ]
+    )
+    # Terraform modules: surface propose-time cloud docs digest when present.
+    if is_terraform_module_spec(spec):
+        cloud_ctx = resolve_additional_context(
+            IssueSnapshot(key=issue_key),
+            spec=spec,
+        )
+        lines.extend(format_cloud_notes_section(cloud_ctx))
+    lines.extend(
+        [
             "---",
             "Post-create rename is not supported. Open a new Repo Vend Request to change the name.",
         ]
@@ -394,6 +408,7 @@ def propose_issue(
             )
 
         harness = get_harness(settings)
+        docs_context = normalize_additional_context(issue.additional_context)
         with span("extract", model=settings.orchestrator_model):
             intent = extract_intent_with_harness(
                 harness,
@@ -401,6 +416,7 @@ def propose_issue(
                 summary=issue.summary,
                 description=issue.description,
                 labels=issue.labels,
+                additional_context=docs_context,
             )
             intent = enrich_intent_from_heuristics(
                 intent,
@@ -434,6 +450,7 @@ def propose_issue(
                 intent=intent,
                 summary=issue.summary,
                 description=issue.description,
+                additional_context=docs_context,
             )
         record_eval(verdict.passed, stage="llm", model=settings.eval_model)
 
@@ -547,6 +564,7 @@ def propose_issue(
                 missing_info=missing,
             ),
             status="proposed",
+            additional_context=docs_context,
         )
 
         pr_url: str | None = None

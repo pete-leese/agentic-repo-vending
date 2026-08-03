@@ -120,17 +120,22 @@ def extract_intent_with_harness(
     summary: str,
     description: str,
     labels: list[str],
+    additional_context: str = "",
 ) -> ExtractedIntent:
     if harness.name == "heuristic":
         from repo_vendor.naming import infer_intent_from_labels_and_text
 
         return infer_intent_from_labels_and_text(summary, description, labels)
 
+    from repo_vendor.cloud_docs import normalize_additional_context
+
+    ctx = normalize_additional_context(additional_context) or "(none)"
     system, prompt = format_user_prompt(
         "extract-intent",
         summary=summary,
         description=description,
         labels=", ".join(labels),
+        additional_context=ctx,
     )
     raw = harness.complete(model=model, prompt=prompt, system=system)
     data = _extract_json(raw)
@@ -153,6 +158,7 @@ def eval_with_harness(
     intent: ExtractedIntent,
     summary: str,
     description: str,
+    additional_context: str = "",
 ) -> EvalVerdict:
     if harness.name == "heuristic":
         # Defer to deterministic gate; soft-pass once a name can be built.
@@ -182,11 +188,15 @@ def eval_with_harness(
             or ["Insufficient information for naming/template selection"],
         )
 
+    from repo_vendor.cloud_docs import normalize_additional_context
+
+    ctx = normalize_additional_context(additional_context) or "(none)"
     system, prompt = format_user_prompt(
         "judge-naming",
         summary=summary,
         description=description,
         intent_json=intent.model_dump_json(),
+        additional_context=ctx,
     )
     raw = harness.complete(model=model, prompt=prompt, system=system)
     data = _extract_json(raw)

@@ -67,3 +67,6 @@ Create in **New Request** → propose (comment + optional Spec PR) → Keyword A
 
 ### Jira Board I/O
 All reads and writes to the Jira board (issue fetch, transitions, labels, comments) are performed by the Cursor Automation using **Atlassian tools**. The CLI returns a **Jira update plan** (JSON) for the Automation to apply; it does not call Jira itself.
+
+### Cloud Documentation Context
+Optional factual digest gathered by the Cloud Agent (AWS Documentation MCP, Azure MCP, or similar) and passed as `IssueSnapshot.additional_context`. Used to improve propose/eval understanding and, for terraform modules, the post-vend board Description. Never overrides naming rules or Keyword Approval.

@@ -64,6 +64,9 @@ class IssueSnapshot(BaseModel):
     description: str = ""
     status: str = ""
     labels: list[str] = Field(default_factory=list)
+    # Optional cloud-docs digest from Cloud Agent MCP (AWS Docs / Azure / …).
+    # Advisory only — never overrides naming rules or Keyword Approval.
+    additional_context: str = ""
 
 
 class JiraUpdatePlan(BaseModel):
@@ -96,6 +99,8 @@ class SpecRequest(BaseModel):
     evals: SpecEvals
     status: Literal["proposed", "approved", "vended"] = "proposed"
     pr_url: str | None = None
+    # Propose-time cloud docs digest (opaque). Used on terraform-module vend Description.
+    additional_context: str = ""
 
 
 class PhaseResult(BaseModel):

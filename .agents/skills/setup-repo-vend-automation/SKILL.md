@@ -36,10 +36,10 @@ python3 scripts/build_repo_vend_automation_prefill.py
 |-------|--------|
 | Name | repo-vend |
 | Trigger | Incoming HTTP webhook |
-| Tools | Atlassian MCP |
+| Tools | Atlassian MCP (+ optional AWS Docs / Azure MCP from `cloud_docs` in `repo-vend.yaml`) |
 | Repo / branch | From prefill `gitConfig` (usually pete-leese/agentic-repo-vending @ main) |
-| Instructions | From docs/automation-setup.md (propose/vend only; no rename) |
-| To finish in editor | Save; copy webhook URL + webhook API key; bind Cloud Agent env; confirm Atlassian |
+| Instructions | From docs/automation-setup.md (propose/vend only; no rename; optional cloud-docs enrichment) |
+| To finish in editor | Save; copy webhook URL + webhook API key; bind Cloud Agent env; confirm Atlassian + cloud-docs MCPs |
 
 4. Ask: “Does this look correct? Ready for me to open the Automations editor?”
 
@@ -77,10 +77,13 @@ python3 scripts/generate_jira_automation_import.py --webhook-url '<PASTED_URL>'
 
 ## MCP name note
 
-Prefill uses MCP `serverName` **`Atlassian`** by default. If the Automations editor shows a different catalog name, re-run:
+Prefill uses MCP `serverName` **`Atlassian`** by default, plus enabled `cloud_docs.providers.*.mcp_server` names from `repo-vend.yaml`. If the Automations editor shows different catalog names, re-run:
 
 ```bash
-python3 scripts/build_repo_vend_automation_prefill.py --atlassian-server-name '<exact catalog name>'
+python3 scripts/build_repo_vend_automation_prefill.py \
+  --atlassian-server-name '<exact catalog name>' \
+  --mcp-server '<aws-docs-catalog-name>' \
+  --mcp-server '<azure-catalog-name>'
 ```
 
 and open the editor again. Only dashboard-eligible MCP servers can be prefilled.

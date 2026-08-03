@@ -15,6 +15,7 @@ The control-plane repo reads **[`repo-vend.yaml`](../repo-vend.yaml)** at runtim
 | `github.templates.*` | Which GitHub **template repo** maps to terraform / python / generic |
 | `github.default_project_type` | Fallback when the ticket is not clearly terraform or python (`generic`) |
 | `models.*` | Orchestrator / eval model IDs (must differ; see below) |
+| `cloud_docs.*` | Cloud Agent MCP enrichment (AWS Docs / Azure / optional GCP) |
 
 ### Models
 
@@ -28,6 +29,25 @@ Defaults in `repo-vend.yaml`:
 Keep orchestrator ≠ eval. Env overrides: `ORCHESTRATOR_MODEL`, `EVAL_MODEL`. Discover IDs for your account with the Cursor SDK: `Cursor.models.list()`.
 
 The **Cloud Automation** model (Automations UI / prefill) is separate — it runs Atlassian tools + CLI; keep that on `composer-2.5` unless you intentionally change the Automations editor.
+
+### Cloud documentation MCP (`cloud_docs`)
+
+Optional enrichment for **propose** when tickets look like terraform / infra modules. The **Cloud Agent** queries enabled MCP servers and puts a short factual digest into `IssueSnapshot.additional_context`. The CLI feeds that into extract + judge prompts and freezes it on the Spec Request. On vend of a **terraform module**, the board Description may include a “Cloud documentation notes” section.
+
+| Key | Purpose |
+|-----|---------|
+| `cloud_docs.enabled` | Master switch (default true) |
+| `cloud_docs.max_chars` | Cap digest length (default 4000) |
+| `cloud_docs.providers.<aws\|azure\|gcp>` | Per-cloud MCP catalog name + enable flag |
+
+Configure MCP servers for Cloud Agents at [cursor.com/agents](https://cursor.com/agents) or **Dashboard → Integrations & MCP** (team). Stdio examples:
+
+- AWS Docs: `uvx awslabs.aws-documentation-mcp-server@latest`
+- Azure: `npx -y @azure/mcp@latest server start`
+
+Prefill (`scripts/build_repo_vend_automation_prefill.py`) includes enabled `mcp_server` names from this section alongside Atlassian. Catalog names must match what the Automations editor shows.
+
+**Does not** change Keyword Approval, naming patterns, or the deterministic gate — docs are advisory only. See [automation-setup.md](automation-setup.md).
 
 After editing YAML, restart the Cloud Agent run (no rebuild required if the file is in the checkout).
 
@@ -84,7 +104,7 @@ Agent-facing policy (patterns, Keyword Approval, labels). The deterministic gate
 | [`evals/extract-intent.json`](../evals/extract-intent.json) | Orchestrator system + user template |
 | [`evals/judge-naming.json`](../evals/judge-naming.json) | Judge system + user template (injects `rules/naming.md`) |
 
-Edit wording and allow-lists here; prefer this over hardcoding prompts in Python.
+Both templates accept `{additional_context}` (cloud docs digest; defaults to `(none)`). Edit wording and allow-lists here; prefer this over hardcoding prompts in Python.
 
 ## Vended README
 

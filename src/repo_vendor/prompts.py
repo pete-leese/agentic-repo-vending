@@ -54,4 +54,12 @@ def format_user_prompt(eval_id: str, **kwargs: Any) -> tuple[str, str]:
     rules_ref = spec.get("rules_ref")
     if rules_ref and "{rules}" in template:
         kwargs = {**kwargs, "rules": load_rules(str(rules_ref))}
-    return system, template.format(**kwargs)
+    # Optional placeholders (e.g. additional_context) default to empty / (none).
+    if "additional_context" not in kwargs:
+        kwargs["additional_context"] = "(none)"
+
+    class _Safe(dict[str, Any]):
+        def __missing__(self, key: str) -> str:
+            return ""
+
+    return system, template.format_map(_Safe(**kwargs))

@@ -66,7 +66,7 @@ def propose(
     issue_json: str | None = typer.Option(
         None,
         "--issue-json",
-        help="IssueSnapshot JSON (key, summary, description, status, labels)",
+        help="IssueSnapshot JSON (fields + optional additional_context)",
     ),
     issue_file: Path | None = typer.Option(
         None,
@@ -98,7 +98,7 @@ def vend(
     issue_json: str | None = typer.Option(
         None,
         "--issue-json",
-        help="IssueSnapshot JSON (key, summary, description, status, labels)",
+        help="IssueSnapshot JSON (fields + optional additional_context)",
     ),
     issue_file: Path | None = typer.Option(
         None,

@@ -26,6 +26,14 @@ def test_format_judge_injects_naming_rules():
     assert "python logging" in user
     assert "terraform-module-" in user  # from rules/naming.md
     assert "Keyword Approval" in user or "repo-vend-proposed" in user or "lgtm" in user.lower()
+    assert "Cloud documentation context" in user
+    assert "(none)" in user
+
+
+def test_load_eval_extract_has_additional_context_slot():
+    spec = load_eval("extract-intent")
+    assert "{additional_context}" in spec["user_template"]
+    assert "Cloud documentation" in spec["system"] or "documentation context" in spec["system"]
 
 
 def test_load_rules_mentions_templates():
