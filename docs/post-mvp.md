@@ -6,16 +6,17 @@ Signed off MVP first, then implement these. The MVP already leaves extension poi
 
 **Goal:** Observe latency, token usage, eval pass/fail, vend success/skip.
 
-**MVP hooks (already present):**
+**Shipped (OTLP → Grafana Cloud):**
 
-- [`src/repo_vendor/observability.py`](../src/repo_vendor/observability.py) — `MetricsSink`, `span()`, `record_eval()`, `record_vend()`
-- Default sink: structured logs only (`LoggingMetricsSink`)
+- [`src/repo_vendor/observability.py`](../src/repo_vendor/observability.py) — `MetricsSink`, `OtlpMetricsSink`, `span()`, `record_eval()`, `record_vend()`
+- CLI bootstraps from `OTEL_*` env and flushes on exit (see [`docs/observability.md`](observability.md))
+- Default sink: structured logs; with endpoint set: logs + OTLP (fail-open)
 
-**Phase 2 work:**
+**Still open:**
 
-1. Implement `OtlpMetricsSink` exporting to your collector
-2. Call `set_metrics_sink(...)` at process start
-3. Grafana dashboard panels: vend rate, eval fail reasons, p95 span duration, tokens by model (`claude-sonnet-5` vs `composer-2.5`)
+1. Grafana dashboard panels: vend rate, eval fail reasons, p95 span duration, tokens by model
+2. HITL wait metrics (`hitl.latency_ms` / `hitl.result`)
+3. Optional real OTEL traces (today spans are duration histograms only)
 
 ## 2. Additional AI harnesses
 
@@ -39,3 +40,4 @@ Signed off MVP first, then implement these. The MVP already leaves extension poi
 - [ ] Templates stable
 - [ ] Webhook reliability acceptable
 - [ ] Rotate any exposed API keys
+- [x] OTEL env available on Cloud Agent + `otel` extra installed

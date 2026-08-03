@@ -13,11 +13,11 @@
 git clone https://github.com/pete-leese/agentic-repo-vending.git
 cd agentic-repo-vending
 # https://docs.astral.sh/uv/
-make sync    # uv sync --group dev --extra cursor
+make sync    # uv sync --group dev --extra cursor --extra otel
 make doctor
 ```
 
-Cloud Agents use [`.cursor/environment.json`](../.cursor/environment.json) so **uv** syncs `dev` + `cursor` on VM start. Local gates: `make ci`.
+Cloud Agents use [`.cursor/environment.json`](../.cursor/environment.json) so **uv** syncs `dev` + `cursor` + `otel` on VM start. Local gates: `make ci`. Grafana Cloud metrics: [`observability.md`](observability.md).
 
 ## 2. Configure project + secrets
 
@@ -27,6 +27,7 @@ Edit [`repo-vend.yaml`](../repo-vend.yaml) for board URL, approval keywords, and
 |--------|---------|
 | `CURSOR_API_KEY` | Cursor SDK (`claude-sonnet-5` extract + `composer-2.5` judge; see `repo-vend.yaml`) |
 | `GITHUB_TOKEN` | Spec PRs + create-from-template + **classic** branch protection. Classic PAT: `repo`. Fine-grained: Contents + Pull requests + **Administration** (read/write). |
+| `OTEL_EXPORTER_OTLP_*` | Optional — Grafana Cloud OTLP gateway (see [observability.md](observability.md)) |
 
 Jira board I/O: **Atlassian** tool on the Cursor Automation (not Jira API tokens in the CLI).
 
