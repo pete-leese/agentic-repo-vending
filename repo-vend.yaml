@@ -42,3 +42,28 @@ models:
   # Override locally: ORCHESTRATOR_MODEL / EVAL_MODEL. List IDs: Cursor.models.list().
   orchestrator: claude-sonnet-5
   eval: composer-2.5
+
+# Cloud Agent MCP enrichment (propose). The CLI never calls these APIs — it only
+# consumes IssueSnapshot.additional_context and freezes it on the Spec Request.
+# See docs/automation-setup.md and docs/customizing.md.
+cloud_docs:
+  enabled: true
+  max_chars: 4000
+  # Prefill / Automation: enable these MCP servers on the Cloud Agent / Automation.
+  # Catalog names must match cursor.com/agents or Dashboard → Integrations & MCP.
+  providers:
+    aws:
+      enabled: true
+      mcp_server: "awslabs.aws-documentation-mcp-server"
+      # Stdio example (dashboard JSON): uvx awslabs.aws-documentation-mcp-server@latest
+      notes: "AWS Documentation MCP — service facts for terraform modules on aws"
+    azure:
+      enabled: true
+      mcp_server: "azure-mcp-server"
+      # Stdio example: npx -y @azure/mcp@latest server start
+      notes: "Azure MCP Server — service/platform facts for terraform modules on azure"
+    gcp:
+      enabled: false
+      # Optional: Google Developer Knowledge (HTTP) or gcloud MCP when enabled for the team
+      mcp_server: ""
+      notes: "Enable when a GCP docs MCP is available to the Cloud Agent"

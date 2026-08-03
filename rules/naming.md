@@ -27,7 +27,7 @@ Comment likes/reactions are **not** used. Keep the Jira Automation comment condi
 | **`repo-vend-warning`** | Repo created but a non-fatal step failed (e.g. branch protection / README rewrite) |
 | **`repo-vend-error`** | Propose or vend did not complete |
 
-Status flow: **New Request** (create / re-propose) → propose → Keyword Approval → **In Progress** while vending → **Done** on success/warning. After a successful vend, the agent replaces the issue **Description** with a short summary of what was approved and created (repo URL, template, type/platform).
+Status flow: **New Request** (create / re-propose) → propose → Keyword Approval → **In Progress** while vending → **Done** on success/warning. After a successful vend, the agent replaces the issue **Description** with a short summary of what was approved and created (repo URL, template, type/platform). For **terraform modules**, that summary may also include propose-time **Cloud documentation notes** when the Cloud Agent supplied `additional_context` (AWS Docs / Azure MCP, etc.) — advisory only; it does not change naming or HITL.
 
 ## Helper labels (optional)
 
