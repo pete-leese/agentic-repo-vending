@@ -30,7 +30,7 @@ evals:
     \ (type=terraform)."
   missing_info: []
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/31
 additional_context: '### What is AWS PrivateLink?
 
   - AWS PrivateLink is a highly available, scalable technology that lets you privately
