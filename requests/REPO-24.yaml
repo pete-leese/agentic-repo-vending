@@ -1,0 +1,51 @@
+issue_key: REPO-24
+summary: test repo please
+description: ''
+intent:
+  project_type: generic
+  terraform_shape: null
+  platform: null
+  purpose: test-repo
+  proposed_name: test
+  confidence: 0.15
+  missing_info:
+  - "no project type indicated (terraform/python) \u2014 defaulting to generic per\
+    \ fallback rule"
+  - no platform/cloud service mentioned
+  - no clear purpose beyond 'test'
+  - no explicit proposed repo name
+  - no labels provided
+  notes: "Ticket summary is just 'test repo please' with empty description and no\
+    \ labels \u2014 essentially no real intent to extract. Defaulting to generic project\
+    \ type per repo-vend.yaml github.default_project_type, purpose slugged as 'test-repo'\
+    \ from the summary. Confidence kept very low since this looks like a placeholder/test\
+    \ ticket rather than a genuine repo request; recommend re-propose with real details\
+    \ before approval."
+proposed_name: test
+template: template-generic-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - "Ticket summary 'test repo please' has no terraform, python, infra module, or\
+    \ cloud service signals \u2014 generic fallback applies per naming rules"
+  - Purpose slug 'test' derived from summary after kebab normalization and stopword
+    removal (repo, please)
+  - Generic naming requires plain kebab-case with no terraform-/python- prefix; 'test'
+    satisfies the generic pattern
+  - template-generic-repo is the correct template for generic project type per repo-vend.yaml
+  - "Deterministic gate locked `test` \u2192 `template-generic-repo` (type=generic)."
+  missing_info:
+  - "no project type indicated (terraform/python) \u2014 defaulting to generic per\
+    \ fallback rule"
+  - no platform/cloud service mentioned
+  - no clear purpose beyond 'test'
+  - no explicit proposed repo name
+  - no labels provided
+  - "Empty description \u2014 no additional project context"
+  - Minimal purpose ('test') with no substantive scope; consider re-proposing with
+    real project details before approval
+  - No helper labels provided (type-*, tf-*, platform-*)
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/33
+additional_context: ''
