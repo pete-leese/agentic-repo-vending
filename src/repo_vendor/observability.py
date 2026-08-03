@@ -66,17 +66,31 @@ class LoggingMetricsSink(MetricsSink):
         )
 
     def record_tokens(self, *, model: str, input_tokens: int, output_tokens: int) -> None:
-        self.emit(
-            MetricEvent(
-                name="llm.tokens",
-                value=float(input_tokens + output_tokens),
-                attributes={
-                    "model": model,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                },
+        # Prefer direction labels over raw counts-as-labels (cardinality).
+        if input_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(input_tokens),
+                    attributes={"model": model, "direction": "input"},
+                )
             )
-        )
+        if output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(output_tokens),
+                    attributes={"model": model, "direction": "output"},
+                )
+            )
+        if not input_tokens and not output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=0.0,
+                    attributes={"model": model, "direction": "total"},
+                )
+            )
 
 
 class FanoutMetricsSink(MetricsSink):
@@ -183,17 +197,30 @@ class OtlpMetricsSink(MetricsSink):
         counter.add(event.value, attrs)
 
     def record_tokens(self, *, model: str, input_tokens: int, output_tokens: int) -> None:
-        self.emit(
-            MetricEvent(
-                name="llm.tokens",
-                value=float(input_tokens + output_tokens),
-                attributes={
-                    "model": model,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                },
+        if input_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(input_tokens),
+                    attributes={"model": model, "direction": "input"},
+                )
             )
-        )
+        if output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(output_tokens),
+                    attributes={"model": model, "direction": "output"},
+                )
+            )
+        if not input_tokens and not output_tokens:
+            self.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=0.0,
+                    attributes={"model": model, "direction": "total"},
+                )
+            )
 
     def flush(self, timeout_millis: int = 10_000) -> bool:
         return bool(self._provider.force_flush(timeout_millis=timeout_millis))
@@ -235,12 +262,40 @@ def otlp_endpoint_configured() -> bool:
     return bool(os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip())
 
 
+def normalize_otlp_headers_env() -> bool:
+    """Strip accidental quotes from OTEL header env vars (common secrets-UI footgun).
+
+    Grafana Cloud returns 401 when the header string is invalid (e.g. trailing ``"``),
+    while ``force_flush`` can still report success. Returns True if any value changed.
+    """
+    changed = False
+    for key in (
+        "OTEL_EXPORTER_OTLP_HEADERS",
+        "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
+    ):
+        raw = os.environ.get(key)
+        if raw is None:
+            continue
+        cleaned = _strip_env_quotes(raw)
+        if cleaned != raw:
+            os.environ[key] = cleaned
+            changed = True
+            logger.warning(
+                "Normalized %s: removed surrounding/trailing quotes "
+                "(invalid quotes cause Grafana OTLP 401)",
+                key,
+            )
+    return changed
+
+
 def configure_metrics_from_env(*, also_log: bool = True) -> MetricsSink:
     """Select sink from env. Fail-open to logging if OTLP is unset or misconfigured."""
     if not otlp_endpoint_configured():
         sink: MetricsSink = LoggingMetricsSink()
         set_metrics_sink(sink)
         return sink
+
+    normalize_otlp_headers_env()
 
     try:
         otlp = OtlpMetricsSink.from_env()
@@ -263,7 +318,13 @@ def configure_metrics_from_env(*, also_log: bool = True) -> MetricsSink:
 
 
 def flush_metrics(timeout_millis: int = 10_000) -> bool:
-    return get_metrics_sink().flush(timeout_millis=timeout_millis)
+    ok = get_metrics_sink().flush(timeout_millis=timeout_millis)
+    if not ok:
+        logger.error(
+            "OTLP metrics flush failed/timed out — check exporter ERROR logs "
+            "(Grafana often returns 401 for bad OTEL_EXPORTER_OTLP_HEADERS)"
+        )
+    return ok
 
 
 def shutdown_metrics(timeout_millis: int = 10_000) -> None:
@@ -309,6 +370,17 @@ def record_vend(success: bool, **attributes: Any) -> None:
             attributes={**attributes, "success": success},
         )
     )
+
+
+def _strip_env_quotes(raw: str) -> str:
+    """Remove wrapping quotes and a single trailing quote leftover from secret UIs."""
+    text = raw.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        text = text[1:-1].strip()
+    # Secrets UIs sometimes store Authorization=…\" with only a trailing quote.
+    while text.endswith('"') or text.endswith("'"):
+        text = text[:-1].rstrip()
+    return text
 
 
 def _prom_safe_name(name: str) -> str:

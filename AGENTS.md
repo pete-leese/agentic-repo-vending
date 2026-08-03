@@ -20,6 +20,7 @@ Enable the **Atlassian** tool. For terraform-module enrichment, also enable **AW
 | [`requests/`](requests/) | Spec Request YAML (via PR) |
 | [`SECURITY.md`](SECURITY.md) | Secrets + reporting |
 | [`docs/observability.md`](docs/observability.md) | OTLP metrics → Grafana Cloud |
+| [`docs/grafana/repo-vend-dashboard.json`](docs/grafana/repo-vend-dashboard.json) | Importable Grafana dashboard |
 
 Skills: **setup-repo-vend-automation**, **generate-jira-automation**. Customize: [`docs/customizing.md`](docs/customizing.md).
 

@@ -48,27 +48,63 @@ class CursorSdkHarness(ModelHarness):
             local=LocalAgentOptions(cwd="."),
         ) as agent:
             result = agent.send(full)
+            waited: Any = None
             # Prefer wait()/text APIs across SDK versions
             if hasattr(result, "wait"):
                 waited = result.wait()
                 text = getattr(waited, "result", None) or getattr(waited, "text", None)
                 if callable(text):
-                    return str(text())
-                if text:
-                    return str(text)
-            if hasattr(result, "text"):
+                    out = str(text())
+                elif text:
+                    out = str(text)
+                else:
+                    out = ""
+            elif hasattr(result, "text"):
                 t = result.text
-                return str(t() if callable(t) else t)
-            # Stream messages fallback
-            chunks: list[str] = []
-            if hasattr(result, "messages"):
-                for message in result.messages():
-                    if getattr(message, "type", None) == "assistant":
-                        content = getattr(getattr(message, "message", None), "content", []) or []
-                        for block in content:
-                            if getattr(block, "type", None) == "text":
-                                chunks.append(getattr(block, "text", ""))
-            return "".join(chunks)
+                out = str(t() if callable(t) else t)
+            else:
+                # Stream messages fallback
+                chunks: list[str] = []
+                if hasattr(result, "messages"):
+                    for message in result.messages():
+                        if getattr(message, "type", None) == "assistant":
+                            content = (
+                                getattr(getattr(message, "message", None), "content", []) or []
+                            )
+                            for block in content:
+                                if getattr(block, "type", None) == "text":
+                                    chunks.append(getattr(block, "text", ""))
+                out = "".join(chunks)
+
+            _record_run_tokens(model=model, waited=waited if waited is not None else result)
+            return out
+
+
+def _record_run_tokens(*, model: str, waited: Any) -> None:
+    """Best-effort: Cursor SDK RunResult.usage → llm.tokens metrics."""
+    try:
+        from repo_vendor.observability import MetricEvent, get_metrics_sink
+
+        usage = getattr(waited, "usage", None)
+        if usage is None:
+            return
+        input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+        sink = get_metrics_sink()
+        if input_tokens or output_tokens:
+            sink.record_tokens(model=model, input_tokens=input_tokens, output_tokens=output_tokens)
+            return
+        total = int(getattr(usage, "total_tokens", 0) or 0)
+        if total:
+            sink.emit(
+                MetricEvent(
+                    name="llm.tokens",
+                    value=float(total),
+                    attributes={"model": model, "direction": "total"},
+                )
+            )
+    except Exception:  # noqa: BLE001 — never fail propose/vend on metrics
+        logger.debug("token usage metrics skipped", exc_info=True)
 
 
 class HeuristicHarness(ModelHarness):
