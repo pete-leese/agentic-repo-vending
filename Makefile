@@ -3,8 +3,8 @@
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
-sync: ## Install runtime + dev + cursor extras via uv
-	uv sync --group dev --extra cursor
+sync: ## Install runtime + dev + cursor + otel extras via uv
+	uv sync --group dev --extra cursor --extra otel
 
 lint: ## Ruff lint
 	uv run ruff check .

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -16,6 +17,12 @@ from rich.console import Console
 
 from repo_vendor.config import Settings, get_settings
 from repo_vendor.models import IssueSnapshot
+from repo_vendor.observability import (
+    configure_metrics_from_env,
+    flush_metrics,
+    otlp_endpoint_configured,
+    shutdown_metrics,
+)
 from repo_vendor.workflow import propose_issue, vend_issue
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -24,6 +31,12 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+
+
+@app.callback()
+def _cli_bootstrap() -> None:
+    """Configure metrics once per process (OTLP → Grafana Cloud when OTEL_* set)."""
+    configure_metrics_from_env()
 
 
 def _with_dry_run(dry_run: bool) -> Settings:
@@ -88,9 +101,14 @@ def propose(
     issue = _load_issue(issue_json, issue_file)
     console.print(f"[bold]Propose[/bold] issue={issue.key} dry_run={settings.dry_run}")
     console.print(f"models: orchestrator={settings.orchestrator_model} eval={settings.eval_model}")
-    result = propose_issue(issue, settings, cursor_agent_id=cursor_agent_id)
-    _emit(result, as_json=as_json)
-    raise typer.Exit(0 if result.success else 1)
+    try:
+        result = propose_issue(issue, settings, cursor_agent_id=cursor_agent_id)
+        _emit(result, as_json=as_json)
+        code = 0 if result.success else 1
+    finally:
+        flush_metrics()
+        shutdown_metrics()
+    raise typer.Exit(code)
 
 
 @app.command()
@@ -124,14 +142,19 @@ def vend(
     settings = _with_dry_run(dry_run)
     issue = _load_issue(issue_json, issue_file)
     console.print(f"[bold]Vend[/bold] issue={issue.key} dry_run={settings.dry_run}")
-    result = vend_issue(
-        issue,
-        approval_comment=approval_comment,
-        settings=settings,
-        cursor_agent_id=cursor_agent_id,
-    )
-    _emit(result, as_json=as_json)
-    raise typer.Exit(0 if result.success else 1)
+    try:
+        result = vend_issue(
+            issue,
+            approval_comment=approval_comment,
+            settings=settings,
+            cursor_agent_id=cursor_agent_id,
+        )
+        _emit(result, as_json=as_json)
+        code = 0 if result.success else 1
+    finally:
+        flush_metrics()
+        shutdown_metrics()
+    raise typer.Exit(code)
 
 
 @app.command()
@@ -154,6 +177,8 @@ def doctor() -> None:
         "ORCHESTRATOR_MODEL": s.orchestrator_model,
         "EVAL_MODEL": s.eval_model,
         "ALLOW_LLM_FALLBACK": s.allow_llm_fallback,
+        "OTEL_EXPORTER_OTLP_ENDPOINT": otlp_endpoint_configured(),
+        "OTEL_SERVICE_NAME": bool(os.environ.get("OTEL_SERVICE_NAME", "").strip()),
         "repo-vend.yaml": str(project_config_path() or "(not found)"),
         "note": "Jira I/O via Atlassian tools; HITL = Keyword Approval after propose",
     }

@@ -11,8 +11,11 @@ If you discover a vulnerability in this control plane or the vended-template flo
 | `CURSOR_API_KEY` | Cloud Agent / SDK (orchestrator + judge) |
 | `GITHUB_TOKEN` | Spec PRs + create-from-template + classic branch protection. Classic PAT: `repo`. Fine-grained: Contents, PRs, **Administration** (read/write). |
 | Webhook API key | Cursor Automation Bearer only — **not** `CURSOR_API_KEY` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Grafana Cloud OTLP Basic auth (instance id + token). Not a substitute for the webhook Bearer. |
 
 Never commit `.env`, real webhook URLs with embedded credentials, or Bearer tokens. Use placeholders in `docs/jira/*.json`.
+
+Do not put secrets, issue bodies, or webhook tokens in metric attributes. Telemetry egress should target only your Grafana Cloud OTLP gateway (allowlist when locking network).
 
 ## Trust boundaries
 
