@@ -1,0 +1,30 @@
+issue_key: REPO-21
+summary: create me a repo for route53 terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: route53
+  proposed_name: terraform-module-route53-aws
+  confidence: 0.9
+  missing_info: []
+  notes: 'Platform derived from service alias: Route53 -> aws (rules/deterministic.yaml
+    platform_service_aliases). No explicit repo name given; expected pattern terraform-module-route53-aws.'
+proposed_name: terraform-module-route53-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Request explicitly asks for a Route53 terraform module; infra phrasing with module
+    + cloud service maps to terraform module, not generic.
+  - Terraform shape is module and platform is aws (Route53 service alias per rules/deterministic.yaml).
+  - 'Module name follows required pattern terraform-module-<purpose>-<platform>: terraform-module-route53-aws.'
+  - Terraform project type maps to template-terraform-repo per repo-vend.yaml.
+  - "Deterministic gate locked `terraform-module-route53-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/28
+additional_context: ''
