@@ -1,0 +1,48 @@
+issue_key: REPO-22
+summary: need a repo for private link terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: azure
+  purpose: private-link
+  proposed_name: terraform-module-private-link-azure
+  confidence: 0.88
+  missing_info: []
+  notes: Summary explicitly says 'terraform module' for 'private link' -> terraform-module-private-link-azure.
+    No platform-* label or explicit cloud word in the ticket; platform derived from
+    Cloud documentation context (Azure Private Link is an Azure-specific PaaS private-connectivity
+    feature). Docs confirm purpose (private connectivity to PaaS/services via private
+    endpoint) but did not change naming rules.
+proposed_name: terraform-module-private-link-azure
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket explicitly requests a terraform module for private link
+  - Terraform module naming matches terraform-module-<purpose>-<platform>
+  - 'Platform azure is valid: Azure Private Link is Azure-specific and intent.platform
+    is set'
+  - Purpose private-link is valid kebab-case
+  - template-terraform-repo aligns with terraform project type
+  - "Deterministic gate locked `terraform-module-private-link-azure` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: null
+additional_context: '### What is Azure Private Link?
+
+  - Azure Private Link enables access to Azure PaaS services (Storage, SQL Database,
+  etc.) and customer/partner services over a private endpoint in your virtual network.
+
+  - Traffic between your VNet and the service travels the Microsoft backbone network,
+  so exposing services to the public internet is not required.
+
+  - Teams provision Private Link for secure private connectivity, data-exfiltration
+  protection, and to expose their own services via Private Link Service behind a Standard
+  Load Balancer.
+
+  - Platform: azure
+
+  - Docs: https://learn.microsoft.com/azure/private-link/private-link-overview'
