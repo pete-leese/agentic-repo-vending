@@ -188,7 +188,7 @@ class OtlpMetricsSink(MetricsSink):
         return cls(meter=meter, provider=provider)
 
     def emit(self, event: MetricEvent) -> None:
-        attrs = _otel_attributes(event.attributes)
+        attrs = _otel_attributes(_base_metric_attributes(event.attributes))
         if event.name.startswith("span."):
             hist = self._histogram(event.name, unit="ms")
             hist.record(event.value, attrs)
@@ -385,6 +385,23 @@ def _strip_env_quotes(raw: str) -> str:
     return text
 
 
+def _service_name() -> str:
+    return os.environ.get("OTEL_SERVICE_NAME", "").strip() or "[REDACTED]"
+
+
+def _base_metric_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
+    """Merge env service name onto every point so PromQL can filter on service_name.
+
+    Grafana Cloud OTLP ingestion should copy resource ``service.name`` to
+    ``service_name``, but some stacks omit it on counter/histogram series.
+    Duplicating here keeps the dashboard ``service_name=~"$service"`` matcher
+    working (Prometheus excludes series missing the label entirely).
+    """
+    merged = dict(attributes)
+    merged.setdefault("service_name", _service_name())
+    return merged
+
+
 def _prom_safe_name(name: str) -> str:
     """OTLP→Prometheus prefers ``_``; keep a stable prefix."""
     cleaned = name.replace(".", "_").replace("-", "_")
@@ -416,7 +433,10 @@ def _otel_attributes(attributes: dict[str, Any]) -> dict[str, str | bool | int |
         lower = key.lower()
         if lower in _REDACT_ATTR_KEYS or any(s in lower for s in _REDACT_ATTR_KEYS):
             continue
-        if isinstance(value, bool | int | float):
+        if isinstance(value, bool):
+            # PromQL matchers expect lowercase "true"/"false" strings.
+            out[key] = "true" if value else "false"
+        elif isinstance(value, int | float):
             out[key] = value
         else:
             text = str(value)

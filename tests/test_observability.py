@@ -7,6 +7,7 @@ from repo_vendor.observability import (
     LoggingMetricsSink,
     MetricEvent,
     OtlpMetricsSink,
+    _base_metric_attributes,
     _otel_attributes,
     _prom_safe_name,
     _strip_env_quotes,
@@ -126,6 +127,21 @@ def test_prom_safe_name():
     assert _prom_safe_name("eval.result") == "repo_vend_eval_result"
 
 
+def test_base_metric_attributes_adds_service_name(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "repo-vend-test")
+    attrs = _base_metric_attributes({"issue_key": "REPO-1"})
+    assert attrs["service_name"] == "repo-vend-test"
+    assert attrs["issue_key"] == "REPO-1"
+
+
+def test_base_metric_attributes_does_not_override_service_name(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "from-env")
+    attrs = _base_metric_attributes({"service_name": "explicit"})
+    assert attrs["service_name"] == "explicit"
+
+
 def test_otel_attributes_redact_and_truncate():
     attrs = _otel_attributes(
         {
@@ -139,7 +155,7 @@ def test_otel_attributes_redact_and_truncate():
         }
     )
     assert attrs["issue_key"] == "REPO-1"
-    assert attrs["ok"] is True
+    assert attrs["ok"] == "true"
     assert attrs["n"] == 3
     assert "api_key" not in attrs
     assert "token" not in attrs

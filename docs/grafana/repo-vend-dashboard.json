@@ -71,7 +71,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"propose\"}[$__range])) or vector(0)",
+          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"propose\"}[$__range])) or vector(0)",
           "instant": true,
           "legendFormat": "proposals",
           "range": false,
@@ -112,7 +112,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"vend\"}[$__range])) or vector(0)",
+          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"vend\"}[$__range])) or vector(0)",
           "instant": true,
           "legendFormat": "vends",
           "range": false,
@@ -157,7 +157,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "(sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"vend\"}[$__range])) or vector(0)) / clamp_min((sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"propose\"}[$__range])) or vector(0)), 1)",
+          "expr": "(sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"vend\"}[$__range])) or vector(0)) / clamp_min((sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"propose\"}[$__range])) or vector(0)), 1)",
           "instant": true,
           "legendFormat": "conversion",
           "range": false,
@@ -195,7 +195,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\", passed=\"true\"}[$__range])) or vector(0)",
+          "expr": "sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", passed=\"true\"}[$__range])) or vector(0)",
           "instant": true,
           "legendFormat": "passed",
           "range": false,
@@ -236,7 +236,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\", passed=\"false\"}[$__range])) or vector(0)",
+          "expr": "sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", passed=\"false\"}[$__range])) or vector(0)",
           "instant": true,
           "legendFormat": "failed",
           "range": false,
@@ -281,7 +281,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "(sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\", passed=\"true\"}[$__range])) or vector(0)) / clamp_min((sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\"}[$__range])) or vector(0)), 1)",
+          "expr": "(sum(increase({__name__=~\"repo_vend_eval_result(_total)?\", passed=\"true\"}[$__range])) or vector(0)) / clamp_min((sum(increase({__name__=~\"repo_vend_eval_result(_total)?\"}[$__range])) or vector(0)), 1)",
           "instant": true,
           "legendFormat": "pass rate",
           "range": false,
@@ -325,7 +325,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"propose\"}[$__rate_interval]))",
+          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"propose\"}[$__rate_interval]))",
           "legendFormat": "propose ready",
           "range": true,
           "refId": "A"
@@ -333,7 +333,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"vend\"}[$__rate_interval]))",
+          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"vend\"}[$__rate_interval]))",
           "legendFormat": "vend created",
           "range": true,
           "refId": "B"
@@ -341,7 +341,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"false\"}[$__rate_interval]))",
+          "expr": "sum(increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"false\"}[$__rate_interval]))",
           "legendFormat": "failures",
           "range": true,
           "refId": "C"
@@ -373,7 +373,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (reason) (increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"false\"}[$__range]))",
+          "expr": "sum by (reason) (increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"false\"}[$__range]))",
           "legendFormat": "{{reason}}",
           "instant": true,
           "range": false,
@@ -417,7 +417,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (issue_key, repo, template, outcome, protected) (increase({__name__=~\"repo_vend_vend_result(_total)?\", service_name=~\"$service\", success=\"true\", phase=\"vend\"}[$__range]))",
+          "expr": "sum by (issue_key, repo, template, outcome, protected) (increase({__name__=~\"repo_vend_vend_result(_total)?\", success=\"true\", phase=\"vend\"}[$__range]))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -477,7 +477,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (stage, model) (rate({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\", passed=\"true\"}[$__rate_interval]))",
+          "expr": "sum by (stage, model) (rate({__name__=~\"repo_vend_eval_result(_total)?\", passed=\"true\"}[$__rate_interval]))",
           "legendFormat": "PASS {{stage}} {{model}}",
           "range": true,
           "refId": "A"
@@ -485,7 +485,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (stage, model) (rate({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\", passed=\"false\"}[$__rate_interval]))",
+          "expr": "sum by (stage, model) (rate({__name__=~\"repo_vend_eval_result(_total)?\", passed=\"false\"}[$__rate_interval]))",
           "legendFormat": "FAIL {{stage}} {{model}}",
           "range": true,
           "refId": "B"
@@ -517,7 +517,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (stage, model) (increase({__name__=~\"repo_vend_eval_result(_total)?\", service_name=~\"$service\", passed=\"true\"}[$__range]))",
+          "expr": "sum by (stage, model) (increase({__name__=~\"repo_vend_eval_result(_total)?\", passed=\"true\"}[$__range]))",
           "legendFormat": "{{stage}} {{model}}",
           "instant": true,
           "range": false,
@@ -559,7 +559,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_propose_.*_bucket\", service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_propose_.*_bucket\"}[$__rate_interval])))",
           "legendFormat": "propose p95",
           "range": true,
           "refId": "A"
@@ -567,7 +567,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_extract_.*_bucket\", service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_extract_.*_bucket\"}[$__rate_interval])))",
           "legendFormat": "extract p95",
           "range": true,
           "refId": "B"
@@ -575,7 +575,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_eval_llm_.*_bucket\", service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_eval_llm_.*_bucket\"}[$__rate_interval])))",
           "legendFormat": "eval_llm p95",
           "range": true,
           "refId": "C"
@@ -583,7 +583,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_eval_deterministic_.*_bucket\", service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_eval_deterministic_.*_bucket\"}[$__rate_interval])))",
           "legendFormat": "eval_deterministic p95",
           "range": true,
           "refId": "D"
@@ -591,7 +591,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_vend_.*_bucket\", service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate({__name__=~\"repo_vend_span_vend_.*_bucket\"}[$__rate_interval])))",
           "legendFormat": "vend p95",
           "range": true,
           "refId": "E"
@@ -634,7 +634,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (model, direction) (rate({__name__=~\"repo_vend_llm_tokens(_total)?\", service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (model, direction) (rate({__name__=~\"repo_vend_llm_tokens(_total)?\"}[$__rate_interval]))",
           "legendFormat": "{{model}} {{direction}}",
           "range": true,
           "refId": "A"
@@ -666,7 +666,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "editorMode": "code",
-          "expr": "sum by (model, direction) (increase({__name__=~\"repo_vend_llm_tokens(_total)?\", service_name=~\"$service\"}[$__range]))",
+          "expr": "sum by (model, direction) (increase({__name__=~\"repo_vend_llm_tokens(_total)?\"}[$__range]))",
           "legendFormat": "{{model}} {{direction}}",
           "instant": true,
           "range": false,
@@ -699,7 +699,7 @@
         "current": { "selected": true, "text": "All", "value": "$__all" },
         "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "definition": "label_values({__name__=~\"repo_vend_.*\"}, service_name)",
-        "hide": 0,
+        "hide": 2,
         "includeAll": true,
         "label": "Service",
         "multi": false,
