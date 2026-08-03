@@ -353,20 +353,22 @@ def span(name: str, **attributes: Any) -> Iterator[None]:
 
 
 def record_eval(passed: bool, **attributes: Any) -> None:
+    # Always count 1 — Prometheus counters must increase; pass/fail is a label.
     _sink.emit(
         MetricEvent(
             name="eval.result",
-            value=1.0 if passed else 0.0,
+            value=1.0,
             attributes={**attributes, "passed": passed},
         )
     )
 
 
 def record_vend(success: bool, **attributes: Any) -> None:
+    # Always count 1 — success/skip/reason live on labels.
     _sink.emit(
         MetricEvent(
             name="vend.result",
-            value=1.0 if success else 0.0,
+            value=1.0,
             attributes={**attributes, "success": success},
         )
     )

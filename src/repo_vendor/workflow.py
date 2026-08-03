@@ -458,7 +458,12 @@ def propose_issue(
                 description=issue.description,
                 additional_context=docs_context,
             )
-        record_eval(verdict.passed, stage="llm", model=settings.eval_model)
+        record_eval(
+            verdict.passed,
+            stage="llm",
+            model=settings.eval_model,
+            issue_key=key,
+        )
 
         # Judge name/template win over extract mistypes (REPO-16 disconnect).
         intent = apply_eval_verdict(intent, verdict, settings)
@@ -466,7 +471,7 @@ def propose_issue(
 
         with span("eval_deterministic"):
             gate = validate_name_and_template(intent, settings)
-        record_eval(gate.passed, stage="deterministic")
+        record_eval(gate.passed, stage="deterministic", issue_key=key)
 
         errors = list(gate.errors)
         if not verdict.passed:
@@ -624,7 +629,7 @@ def propose_issue(
             cursor_agent_url=agent_url,
             additional_context=docs_context,
         )
-        record_vend(True, issue_key=key, repo=name, phase="propose")
+        record_vend(True, issue_key=key, repo=name, phase="propose", template=gate.template)
         return PhaseResult(
             success=True,
             outcome="success",
@@ -826,7 +831,15 @@ def vend_issue(
             cursor_agent_id=agent_id,
             cursor_agent_url=agent_url,
         )
-        record_vend(True, issue_key=key, repo=created.name, protected=main_protected)
+        record_vend(
+            True,
+            issue_key=key,
+            repo=created.name,
+            protected=main_protected,
+            phase="vend",
+            template=template,
+            outcome=outcome,
+        )
         summary = (
             f"Created {created.html_url}"
             if main_protected
