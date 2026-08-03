@@ -44,5 +44,5 @@ evals:
     \ label, or reword with 'module') \u2014 would change to terraform-module-route53-aws\
     \ and template-terraform-repo"
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/27
 additional_context: ''
