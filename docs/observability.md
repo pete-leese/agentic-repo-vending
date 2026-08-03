@@ -30,12 +30,28 @@ OTLP names are prefixed `repo_vend_` and dots become underscores. Grafana may ad
 
 Useful labels: `issue_key`, `status`, `stage`, `model`, `reason`, `success`, `passed`.
 
+## Grafana dashboard
+
+Importable JSON (panels from post-MVP: vend rate, eval fails, p95 spans, tokens placeholder):
+
+[`docs/grafana/repo-vend-dashboard.json`](grafana/repo-vend-dashboard.json)
+
+1. Grafana Cloud → **Dashboards** → **New** → **Import**
+2. Upload the JSON (or paste)
+3. Pick your **Prometheus** / Mimir datasource when prompted
+4. Set time range to at least the last few hours after a smoke/propose run
+
+Service variable defaults from `service_name` (usually `agentic-repo-vending`).
+
+> Note: `terraform-agentic-workflows` documents OTEL → Grafana conceptually but does not ship a dashboard JSON — this file is the repo-vend equivalent.
+
 ## Verify
 
 ```bash
 uv run python -m repo_vendor doctor   # OTEL_EXPORTER_OTLP_ENDPOINT: True
 uv run python -m repo_vendor metrics-smoke
 # Explore → Prometheus: {__name__=~".*repo_vend.*"}
+# Or open the imported Repo Vend dashboard
 ```
 
 CLI flushes and shuts down the meter provider after each propose/vend so short Cloud Agent runs still export.
