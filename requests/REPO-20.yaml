@@ -1,0 +1,48 @@
+issue_key: REPO-20
+summary: create me a repo for route53
+description: ''
+intent:
+  project_type: generic
+  terraform_shape: null
+  platform: aws
+  purpose: route53
+  proposed_name: route53
+  confidence: 0.8
+  missing_info:
+  - no 'module'/'terraform' wording or type-* label present, so falling back to generic
+    per naming.md fallback rule
+  - confirm if this is meant to be a terraform module (add tf-module label) since
+    Route53 is an AWS service
+  notes: "Summary only mentions 'route53' with no 'module'/'terraform' word and no\
+    \ labels, so per rules/naming.md Type selection fallback this is generic (template-generic-repo),\
+    \ not terraform \u2014 do not invent terraform-<name> for an unclear/bare service\
+    \ mention. Route53 would map to platform aws via platform_service_aliases if this\
+    \ were later reclassified as a terraform module (add tf-module + platform-aws\
+    \ or reword with 'module')."
+proposed_name: route53
+template: template-generic-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - "Summary is a bare service mention ('repo for route53') with no 'terraform' wording,\
+    \ no 'module' infra phrasing, and no type-terraform/tf-module labels \u2014 generic\
+    \ fallback applies per naming.md type selection"
+  - Route53 maps to platform aws via service alias, but platform suffix is not required
+    for generic repos
+  - Generic naming uses plain kebab-case without terraform-/python- prefix; purpose
+    'route53' yields proposed_name route53
+  - template-generic-repo aligns with generic project type per repo-vend.yaml template
+    map
+  - "Deterministic gate locked `route53` \u2192 `template-generic-repo` (type=generic)."
+  missing_info:
+  - no 'module'/'terraform' wording or type-* label present, so falling back to generic
+    per naming.md fallback rule
+  - confirm if this is meant to be a terraform module (add tf-module label) since
+    Route53 is an AWS service
+  - "Confirm if this is meant to be a Terraform module (add tf-module or type-terraform\
+    \ label, or reword with 'module') \u2014 would change to terraform-module-route53-aws\
+    \ and template-terraform-repo"
+status: proposed
+pr_url: null
+additional_context: ''
