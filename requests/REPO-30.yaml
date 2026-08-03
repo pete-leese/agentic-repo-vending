@@ -31,7 +31,7 @@ evals:
     \ (type=terraform)."
   missing_info: []
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/41
 additional_context: '### What is Network Load Balancer (NLB)?
 
   - AWS Elastic Load Balancing service that operates at Layer 4 (TCP/UDP/QUIC) of
