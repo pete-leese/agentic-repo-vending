@@ -76,25 +76,47 @@ class CursorSdkHarness(ModelHarness):
                                     chunks.append(getattr(block, "text", ""))
                 out = "".join(chunks)
 
-            _record_run_tokens(model=model, waited=waited if waited is not None else result)
+            _record_run_tokens(
+                model=model,
+                waited=waited if waited is not None else result,
+                agent=agent,
+                prompt=full,
+                response=out,
+            )
             return out
 
 
-def _record_run_tokens(*, model: str, waited: Any) -> None:
-    """Best-effort: Cursor SDK RunResult.usage → llm.tokens metrics."""
+def _record_run_tokens(
+    *,
+    model: str,
+    waited: Any,
+    agent: Any = None,
+    prompt: str = "",
+    response: str = "",
+) -> None:
+    """Best-effort token metrics from RunResult.usage, get_usage(), or char estimate."""
     try:
         from repo_vendor.observability import MetricEvent, get_metrics_sink
 
-        usage = getattr(waited, "usage", None)
-        if usage is None:
-            return
-        input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
-        output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
         sink = get_metrics_sink()
+        usage = getattr(waited, "usage", None)
+
+        # Local agents often leave RunResult.usage empty; try billed GetUsage.
+        if usage is None and agent is not None and hasattr(agent, "get_usage"):
+            try:
+                run_id = getattr(waited, "id", None) or getattr(waited, "run_id", None)
+                agent_usage = agent.get_usage(run_id=run_id) if run_id else agent.get_usage()
+                usage = getattr(agent_usage, "usage", None) or agent_usage
+            except Exception:  # noqa: BLE001
+                logger.debug("agent.get_usage unavailable", exc_info=True)
+
+        input_tokens = int(getattr(usage, "input_tokens", 0) or 0) if usage is not None else 0
+        output_tokens = int(getattr(usage, "output_tokens", 0) or 0) if usage is not None else 0
         if input_tokens or output_tokens:
             sink.record_tokens(model=model, input_tokens=input_tokens, output_tokens=output_tokens)
             return
-        total = int(getattr(usage, "total_tokens", 0) or 0)
+
+        total = int(getattr(usage, "total_tokens", 0) or 0) if usage is not None else 0
         if total:
             sink.emit(
                 MetricEvent(
@@ -103,6 +125,28 @@ def _record_run_tokens(*, model: str, waited: Any) -> None:
                     attributes={"model": model, "direction": "total"},
                 )
             )
+            return
+
+        # Fallback so the tokens panel is not empty when SDK omits usage.
+        if prompt or response:
+            est_in = max(1, len(prompt) // 4) if prompt else 0
+            est_out = max(1, len(response) // 4) if response else 0
+            if est_in:
+                sink.emit(
+                    MetricEvent(
+                        name="llm.tokens",
+                        value=float(est_in),
+                        attributes={"model": model, "direction": "estimate_input"},
+                    )
+                )
+            if est_out:
+                sink.emit(
+                    MetricEvent(
+                        name="llm.tokens",
+                        value=float(est_out),
+                        attributes={"model": model, "direction": "estimate_output"},
+                    )
+                )
     except Exception:  # noqa: BLE001 — never fail propose/vend on metrics
         logger.debug("token usage metrics skipped", exc_info=True)
 

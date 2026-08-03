@@ -52,7 +52,7 @@ def test_record_run_tokens_total_only():
     set_metrics_sink(LoggingMetricsSink())
 
 
-def test_record_run_tokens_missing_usage_noop():
+def test_record_run_tokens_estimate_when_usage_missing():
     class Capture(LoggingMetricsSink):
         def __init__(self) -> None:
             self.events: list[MetricEvent] = []
@@ -62,6 +62,14 @@ def test_record_run_tokens_missing_usage_noop():
 
     sink = Capture()
     set_metrics_sink(sink)
-    _record_run_tokens(model="x", waited=SimpleNamespace())
-    assert sink.events == []
+    _record_run_tokens(
+        model="claude-sonnet-5",
+        waited=SimpleNamespace(),
+        prompt="x" * 40,
+        response="y" * 20,
+    )
+    dirs = {e.attributes["direction"] for e in sink.events}
+    assert dirs == {"estimate_input", "estimate_output"}
+    assert sink.events[0].value == 10.0
+    assert sink.events[1].value == 5.0
     set_metrics_sink(LoggingMetricsSink())

@@ -28,7 +28,11 @@ OTLP names are prefixed `repo_vend_` and dots become underscores. Grafana may ad
 | `vend.result` | `repo_vend_vend_result_total` | counter |
 | `llm.tokens` | `repo_vend_llm_tokens_total` | counter (`model`, `direction=input\|output`) |
 
-Useful labels: `issue_key`, `status`, `stage`, `model`, `direction`, `reason`, `success`, `passed`.
+Useful labels: `issue_key`, `status`, `stage`, `model`, `direction`, `reason`, `success`, `passed`, `phase` (`propose`|`vend`), `repo`, `template`, `outcome`.
+
+**Counters always increment by 1** — pass/fail and success/fail are labels (not `value=0`), so `passed="false"` / `success="false"` series are visible in Prometheus.
+
+**Tokens:** prefer SDK `RunResult.usage`; if missing (common on local SDK agents), emit `direction=estimate_input|estimate_output` from prompt/response length.
 
 ## Grafana dashboard
 
