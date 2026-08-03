@@ -186,6 +186,41 @@ def doctor() -> None:
         console.print(f"{k}: {v}")
 
 
+@app.command("metrics-smoke")
+def metrics_smoke() -> None:
+    """Emit one test metric and flush to OTLP (diagnose Grafana Cloud wiring)."""
+    from repo_vendor.observability import MetricEvent, get_metrics_sink
+
+    if not otlp_endpoint_configured():
+        console.print("[red]OTEL_EXPORTER_OTLP_ENDPOINT is not set[/red]")
+        raise typer.Exit(1)
+    sink = get_metrics_sink()
+    sink.emit(
+        MetricEvent(
+            name="span.smoke",
+            value=1.0,
+            attributes={"status": "ok", "issue_key": "SMOKE"},
+        )
+    )
+    sink.emit(
+        MetricEvent(
+            name="eval.result",
+            value=1.0,
+            attributes={"passed": True, "stage": "smoke"},
+        )
+    )
+    try:
+        ok = flush_metrics(timeout_millis=15_000)
+        console.print(f"flush_ok={ok}")
+        console.print(
+            "If Grafana Explore still empty, check agent logs for OTLP 401 "
+            "and strip quotes from OTEL_EXPORTER_OTLP_HEADERS."
+        )
+        raise typer.Exit(0 if ok else 1)
+    finally:
+        shutdown_metrics()
+
+
 def main() -> None:
     app()
 

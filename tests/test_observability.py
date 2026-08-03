@@ -9,8 +9,10 @@ from repo_vendor.observability import (
     OtlpMetricsSink,
     _otel_attributes,
     _prom_safe_name,
+    _strip_env_quotes,
     configure_metrics_from_env,
     get_metrics_sink,
+    normalize_otlp_headers_env,
     otlp_endpoint_configured,
     set_metrics_sink,
     span,
@@ -36,6 +38,24 @@ def test_set_metrics_sink():
     sink.emit(MetricEvent(name="x", value=2))
     assert sink.events[0].name == "x"
     set_metrics_sink(LoggingMetricsSink())
+
+
+def test_strip_env_quotes():
+    assert _strip_env_quotes('"Authorization=Basic abc=="') == "Authorization=Basic abc=="
+    assert _strip_env_quotes('Authorization=Basic abc=="') == "Authorization=Basic abc=="
+    assert _strip_env_quotes("Authorization=Basic abc==") == "Authorization=Basic abc=="
+
+
+def test_normalize_otlp_headers_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(
+        "OTEL_EXPORTER_OTLP_HEADERS",
+        '"Authorization=Basic%20dGVzdA=="',
+    )
+    assert normalize_otlp_headers_env() is True
+    assert (
+        __import__("os").environ["OTEL_EXPORTER_OTLP_HEADERS"] == "Authorization=Basic%20dGVzdA=="
+    )
+    assert normalize_otlp_headers_env() is False
 
 
 def test_otlp_endpoint_configured(monkeypatch: pytest.MonkeyPatch):
