@@ -1,0 +1,53 @@
+issue_key: REPO-23
+summary: need a repo for privatelink terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: privatelink
+  proposed_name: terraform-module-privatelink-aws
+  confidence: 0.9
+  missing_info: []
+  notes: PrivateLink is an AWS-specific technology; Cloud documentation context confirms
+    platform=aws. Suggested name would be terraform-module-privatelink-aws per naming
+    rules, though no explicit repo name was stated in the ticket.
+proposed_name: terraform-module-privatelink-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Ticket explicitly requests a terraform module for PrivateLink.
+  - Extracted intent confirms project_type=terraform, terraform_shape=module, platform=aws,
+    purpose=privatelink with high confidence and no missing_info.
+  - PrivateLink is AWS-specific; cloud documentation context corroborates platform=aws
+    (platform-* label not required when intent.platform is set).
+  - Proposed name terraform-module-privatelink-aws matches required terraform module
+    pattern terraform-module-<purpose>-<platform>.
+  - Terraform project type maps to template-terraform-repo per repo-vend naming rules.
+  - "Deterministic gate locked `terraform-module-privatelink-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/31
+additional_context: '### What is AWS PrivateLink?
+
+  - AWS PrivateLink is a highly available, scalable technology that lets you privately
+  connect your VPC to AWS services, resources, and third-party services as if they
+  were inside your VPC.
+
+  - Primary use: create interface VPC endpoints so workloads in private subnets can
+  reach services without internet gateways, NAT devices, public IPs, Direct Connect,
+  or VPN.
+
+  - Teams provision PrivateLink to control which API endpoints and services are reachable
+  from a VPC, expose their own VPC endpoint services to other accounts, and enable
+  private SaaS/Marketplace connectivity.
+
+  - Supports interface endpoints (AWS services, cross-account endpoint services, partner
+  services), resource endpoints, and service-network endpoints.
+
+  - Platform: aws
+
+  - Docs: https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html'
