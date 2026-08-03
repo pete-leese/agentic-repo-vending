@@ -47,5 +47,5 @@ evals:
     real project details before approval
   - No helper labels provided (type-*, tf-*, platform-*)
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/33
 additional_context: ''
