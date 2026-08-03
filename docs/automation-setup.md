@@ -68,7 +68,7 @@ When the ticket is terraform / module / cloud infra (named services count — e.
    ```
 
    Prefer 3–6 bullets; cap ~4000 chars (`cloud_docs.max_chars`). Do **not** invent a repo name from docs.
-4. If MCP tools are missing or fail, leave `additional_context` empty and continue propose — do not block the gate.
+4. If MCP tools are missing or fail, leave `additional_context` empty and continue propose — do not block the gate. The CLI will attempt an AWS docs search fallback for AWS terraform/infra tickets (`cloud_docs.cli_fallback`).
 5. Store the digest **only** in `IssueSnapshot.additional_context` (not the Jira description). The CLI includes it on the proposal comment and freezes it on the Spec; terraform-module vend Description also shows it.
 6. Never let docs override Keyword Approval, naming patterns, or invent `terraform-module-*` names — the CLI deterministic gate remains authoritative.
 

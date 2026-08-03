@@ -38,6 +38,7 @@ Optional enrichment for **propose** when tickets look like terraform / infra mod
 |-----|---------|
 | `cloud_docs.enabled` | Master switch (default true) |
 | `cloud_docs.max_chars` | Cap digest length (default 4000) |
+| `cloud_docs.cli_fallback` | If Automation left `additional_context` empty, CLI fetches a short AWS docs overview (default true; fail-open) |
 | `cloud_docs.providers.<aws\|azure\|gcp>` | Per-cloud MCP catalog name + enable flag |
 
 Configure MCP servers for Cloud Agents at [cursor.com/agents](https://cursor.com/agents) or **Dashboard → Integrations & MCP** (team). Stdio examples:
