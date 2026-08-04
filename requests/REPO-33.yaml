@@ -32,7 +32,7 @@ evals:
     \ (type=terraform)."
   missing_info: []
 status: proposed
-pr_url: null
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/42
 additional_context: "### What is AWS Private CA?\n- AWS Private Certificate Authority\
   \ (ACM PCA) lets you create and manage private certificate authority (CA) hierarchies\u2014\
   root and subordinate CAs\u2014without operating an on-premises CA.\n- Private CAs\
