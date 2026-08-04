@@ -1,0 +1,42 @@
+issue_key: REPO-33
+summary: create a repo for private CA terraform module
+description: ''
+intent:
+  project_type: terraform
+  terraform_shape: module
+  platform: aws
+  purpose: private-ca
+  proposed_name: terraform-module-private-ca-aws
+  confidence: 0.9
+  missing_info: []
+  notes: "Summary explicitly says 'terraform module' (type/shape clear). No platform\
+    \ label/word in ticket, but Cloud documentation context confirms platform=aws\
+    \ (AWS Private CA / ACM PCA \u2014 managed root/subordinate CA hierarchies, X.509\
+    \ issuance for TLS/auth/code-signing, integrates with ACM/EKS). Suggested name\
+    \ per naming.md pattern: terraform-module-private-ca-aws."
+proposed_name: terraform-module-private-ca-aws
+template: template-terraform-repo
+evals:
+  llm_passed: true
+  deterministic_passed: true
+  reasons:
+  - Summary explicitly requests a terraform module; shape=module and type=terraform
+    are clear.
+  - Platform aws is established via extracted intent and Cloud documentation (AWS
+    Private CA / ACM PCA).
+  - Proposed name terraform-module-private-ca-aws follows the required terraform-module-<purpose>-<platform>
+    pattern.
+  - Template template-terraform-repo matches terraform project type per repo-vend
+    rules.
+  - "Deterministic gate locked `terraform-module-private-ca-aws` \u2192 `template-terraform-repo`\
+    \ (type=terraform)."
+  missing_info: []
+status: proposed
+pr_url: https://github.com/pete-leese/agentic-repo-vending/pull/42
+additional_context: "### What is AWS Private CA?\n- AWS Private Certificate Authority\
+  \ (ACM PCA) lets you create and manage private certificate authority (CA) hierarchies\u2014\
+  root and subordinate CAs\u2014without operating an on-premises CA.\n- Private CAs\
+  \ issue end-entity X.509 certificates for encrypted TLS channels, user/device/API\
+  \ authentication, code signing, and OCSP-based revocation.\n- Accessible via AWS\
+  \ Console, AWS Private CA API, and AWS CLI; integrates with ACM and services like\
+  \ EKS for in-cluster certificate issuance.\n- Platform: aws\n- Docs: https://docs.aws.amazon.com/privateca/latest/userguide/PcaWelcome.html"
